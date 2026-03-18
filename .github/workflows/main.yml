@@ -1,5 +1,9 @@
 name: Build Android APK
 
+# 【修改点 1】添加环境变量，强制使用 Node.js 24 以消除警告
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 on:
   push:
     branches: [ main ]
@@ -20,6 +24,10 @@ jobs:
         
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
+      
+    # 【修改点 2】新增步骤：赋予 gradlew 执行权限，修复 exit code 127
+    - name: Grant execute permission for gradlew
+      run: chmod +x android/gradlew
       
     - name: Build Debug APK
       run: |
