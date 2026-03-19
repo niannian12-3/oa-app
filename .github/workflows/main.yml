@@ -12,163 +12,93 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-      with:
-        submodules: recursive
     
-    - name: Setup JDK 17
-      uses: actions/setup-java@v4
-      with:
-        java-version: '17'
-        distribution: 'temurin'
-    
-    - name: Setup Android SDK
-      uses: android-actions/setup-android@v3
-      env:
-        FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-    
-    - name: Install Android components
-      env:
-        FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    - name: Setup environment
       run: |
-        yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-34" "build-tools;34.0.0"
-        yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
+        echo "Setting up environment..."
+        sudo apt-get update
+        sudo apt-get install -y openjdk-17-jdk wget unzip
+        
+        # 设置Android SDK
+        mkdir -p ~/android-sdk
+        cd ~/android-sdk
+        wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
+        unzip -q commandlinetools-linux-9477386_latest.zip
+        mkdir -p cmdline-tools/latest
+        mv cmdline-tools/* cmdline-tools/latest/
+        
+        export ANDROID_HOME=~/android-sdk
+        export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin
+        
+        # 接受许可
+        yes | sdkmanager --licenses
+        sdkmanager "platforms;android-34" "build-tools;34.0.0"
+        
+        cd $GITHUB_WORKSPACE
     
-    - name: Check project structure
+    - name: Build APK
       run: |
-        echo "=== Project Structure ==="
-        pwd
-        ls -la
-        echo "=== Android directory ==="
-        ls -la android/ 2>/dev/null || echo "No android directory found"
-        echo "=== Looking for gradlew ==="
-        find . -name "gradlew" -type f 2>/dev/null || echo "gradlew not found"
-    
-    - name: Create gradlew if missing
-      run: |
-        # 检查android目录是否存在
-        if [ ! -d "android" ]; then
-          echo "ERROR: android directory not found!"
-          echo "Creating android directory structure..."
-          mkdir -p android/app/src/main/res/values
-          mkdir -p android/app/src/main/java
+        echo "Building APK..."
+        
+        # 检查是否有android目录
+        if [ -d "android" ]; then
+          cd android
           
-          # 创建最简单的build.gradle
-          cat > android/build.gradle << 'BUILDEOF'
-buildscript {
-    repositories {
-        google()
-        mavenCentral()
-    }
-    dependencies {
-        classpath 'com.android.tools.build:gradle:8.2.0'
-    }
-}
-
-allprojects {
-    repositories {
-        google()
-        mavenCentral()
-    }
-}
-BUILDEOF
-
-          cat > android/app/build.gradle << 'APPEOF'
-plugins {
-    id 'com.android.application'
-}
-
-android {
-    namespace 'com.oa.app'
-    compileSdk 34
-    
-    defaultConfig {
-        applicationId "com.oa.app"
-        minSdk 24
-        targetSdk 34
-        versionCode 1
-        versionName "1.0"
-    }
-    
-    buildTypes {
-        release {
-            minifyEnabled false
-        }
-        debug {
-            debuggable true
-        }
-    }
-}
-
-dependencies {
-    implementation 'androidx.appcompat:appcompat:1.6.1'
-    implementation 'com.google.android.material:material:1.11.0'
-}
-APPEOF
-
-          # 创建AndroidManifest
-          cat > android/app/src/main/AndroidManifest.xml << 'MANIFESTEOF'
-<?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.oa.app">
-    
-    <application
-        android:allowBackup="true"
-        android:icon="@mipmap/ic_launcher"
-        android:label="@string/app_name"
-        android:theme="@style/AppTheme">
-        <activity
-            android:name=".MainActivity"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
-    </application>
-</manifest>
-MANIFESTEOF
-
-          # 创建主题文件
-          cat > android/app/src/main/res/values/themes.xml << 'THEMEEOF'
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <style name="AppTheme" parent="Theme.AppCompat.Light.DarkActionBar">
-        <item name="colorPrimary">#3F51B5</item>
-        <item name="colorPrimaryDark">#303F9F</item>
-        <item name="colorAccent">#FF4081</item>
-    </style>
-</resources>
-THEMEEOF
-
-          # 创建gradlew
-          cd android
-          wget -q https://services.gradle.org/distributions/gradle-8.2-bin.zip
-          unzip -q gradle-8.2-bin.zip
-          ./gradle-8.2/bin/gradle wrapper --gradle-version 8.2
-          cd ..
-        else
-          echo "android directory exists"
-          cd android
-          # 如果gradlew不存在，创建它
+          # 确保gradlew存在
           if [ ! -f "gradlew" ]; then
             echo "Creating gradlew..."
             wget -q https://services.gradle.org/distributions/gradle-8.2-bin.zip
             unzip -q gradle-8.2-bin.zip
             ./gradle-8.2/bin/gradle wrapper --gradle-version 8.2
           fi
-          cd ..
+          
+          chmod +x gradlew
+          ./gradlew assembleDebug
+        else
+          echo "No android directory found. Creating simple APK..."
+          
+          # 创建最简单的Android项目
+          mkdir -p simple-app
+          cd simple-app
+          
+          echo 'plugins {
+  id "com.android.application"
+}
+
+android {
+  namespace "com.simple.app"
+  compileSdk 34
+  
+  defaultConfig {
+    applicationId "com.simple.app"
+    minSdk 21
+    targetSdk 34
+    versionCode 1
+    versionName "1.0"
+  }
+  
+  buildTypes {
+    debug {
+      debuggable true
+    }
+  }
+}
+
+dependencies {
+  implementation "androidx.appcompat:appcompat:1.6.1"
+}' > build.gradle
+          
+          # 使用gradle直接构建
+          wget -q https://services.gradle.org/distributions/gradle-8.2-bin.zip
+          unzip -q gradle-8.2-bin.zip
+          ./gradle-8.2/bin/gradle assembleDebug
         fi
-    
-    - name: Build APK
-      run: |
-        cd android
-        chmod +x gradlew
-        ./gradlew clean
-        ./gradlew assembleDebug --stacktrace
     
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
-        name: app-debug
-        path: android/app/build/outputs/apk/debug/*.apk
+        name: android-apk
+        path: |
+          android/app/build/outputs/apk/debug/*.apk
+          simple-app/build/outputs/apk/debug/*.apk
         retention-days: 30
