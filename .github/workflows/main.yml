@@ -1,42 +1,45 @@
-name: 构建安卓APK
+name: Build Android APK
 
-on名称：构建安卓APK
+on:
   push:
-    branches: [主分支]
+    branches:
+      - main
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    environment:
+    
+    env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v4
     
-    - name: 设置 JDK 17
+    - name: Setup JDK 17
       uses: actions/setup-java@v4
       with:
         java-version: '17'
         distribution: 'temurin'
     
-    - name: 设置 Android SDK
+    - name: Setup Android SDK
       uses: android-actions/setup-android@v3
     
-    - name: 安装 Android SDK 组件
+    - name: Install Android components
       run: |
         yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-34" "build-tools;34.0.0"
         yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
     
-    - name: 添加Material依赖
+    - name: Fix Android project
       run: |
         cd android
+        
+        # Add Material dependency
         if ! grep -q "com.google.android.material:material" app/build.gradle; then
           echo '    implementation "com.google.android.material:material:1.11.0"' >> app/build.gradle
         fi
-    
-    - name: 创建主题文件
-      run: |
-        cd android
+        
+        # Create theme file
         mkdir -p app/src/main/res/values
         echo '<?xml version="1.0" encoding="utf-8"?>' > app/src/main/res/values/themes.xml
         echo '<resources xmlns:tools="http://schemas.android.com/tools">' >> app/src/main/res/values/themes.xml
@@ -51,15 +54,15 @@ jobs:
         echo '    </style>' >> app/src/main/res/values/themes.xml
         echo '</resources>' >> app/src/main/res/values/themes.xml
     
-    - name: 构建APK
+    - name: Build APK
       run: |
         cd android
         chmod +x gradlew
         ./gradlew assembleDebug --stacktrace
     
-    - name: 上传 APK
+    - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
-        name: oa-app-debug
+        name: app-debug
         path: android/app/build/outputs/apk/debug/*.apk
         retention-days: 30
