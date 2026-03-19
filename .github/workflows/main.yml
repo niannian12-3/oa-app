@@ -22,23 +22,23 @@ jobs:
           yes | sdkmanager --licenses
           sdkmanager "platforms;android-34" "build-tools;34.0.0"
           cd $GITHUB_WORKSPACE
-      - name: Fix theme issue
+      - name: Fix Android project
         run: |
           if [ -d "android" ]; then
             cd android
             
-            # 添加Material依赖
+            # 1. 添加Material依赖
             if grep -q "dependencies {" app/build.gradle; then
               if ! grep -q "com.google.android.material:material" app/build.gradle; then
                 sed -i '/dependencies {/a\    implementation "com.google.android.material:material:1.11.0"' app/build.gradle
               fi
             fi
             
-            # 创建主题文件（没有heredoc）
+            # 2. 创建主题文件 - 使用正确的主题名称 Theme.OAApp
             mkdir -p app/src/main/res/values
             echo '<?xml version="1.0" encoding="utf-8"?>' > app/src/main/res/values/themes.xml
             echo '<resources xmlns:tools="http://schemas.android.com/tools">' >> app/src/main/res/values/themes.xml
-            echo '    <style name="Theme.Material3.DayNight.DarkActionBar" parent="Theme.Material3.DayNight">' >> app/src/main/res/values/themes.xml
+            echo '    <style name="Theme.OAApp" parent="Theme.Material3.DayNight.DarkActionBar">' >> app/src/main/res/values/themes.xml
             echo '        <item name="colorPrimary">#6200EE</item>' >> app/src/main/res/values/themes.xml
             echo '        <item name="colorPrimaryVariant">#3700B3</item>' >> app/src/main/res/values/themes.xml
             echo '        <item name="colorOnPrimary">#FFFFFF</item>' >> app/src/main/res/values/themes.xml
@@ -49,10 +49,26 @@ jobs:
             echo '    </style>' >> app/src/main/res/values/themes.xml
             echo '</resources>' >> app/src/main/res/values/themes.xml
             
-            # 修改AndroidManifest使用简单主题（如果还不行）
+            # 3. 创建图标文件目录（避免图标错误）
+            mkdir -p app/src/main/res/mipmap-hdpi
+            mkdir -p app/src/main/res/mipmap-mdpi
+            mkdir -p app/src/main/res/mipmap-xhdpi
+            mkdir -p app/src/main/res/mipmap-xxhdpi
+            mkdir -p app/src/main/res/mipmap-xxxhdpi
+            
+            # 4. 创建简单的strings.xml
+            echo '<?xml version="1.0" encoding="utf-8"?>' > app/src/main/res/values/strings.xml
+            echo '<resources>' >> app/src/main/res/values/strings.xml
+            echo '    <string name="app_name">OA App</string>' >> app/src/main/res/values/strings.xml
+            echo '</resources>' >> app/src/main/res/values/strings.xml
+            
+            # 5. 修改AndroidManifest使用正确的主题
             if [ -f "app/src/main/AndroidManifest.xml" ]; then
-              cp app/src/main/AndroidManifest.xml app/src/main/AndroidManifest.xml.backup
-              sed -i 's/Theme\.Material3\.DayNight\.DarkActionBar/Theme\.AppCompat\.Light\.DarkActionBar/g' app/src/main/AndroidManifest.xml
+              # 移除图标引用（暂时避免图标错误）
+              sed -i 's/android:icon="@mipmap\/ic_launcher"//g' app/src/main/AndroidManifest.xml
+              sed -i 's/android:roundIcon="@mipmap\/ic_launcher_round"//g' app/src/main/AndroidManifest.xml
+              # 确保使用正确的主题
+              sed -i 's/android:theme="@style\/Theme\..*"/android:theme="@style\/Theme.OAApp"/g' app/src/main/AndroidManifest.xml
             fi
           fi
       - run: |
