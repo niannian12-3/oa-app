@@ -2,7 +2,7 @@ name: 构建安卓APK
 
 on:
   push:
-    branches: [ 主分支 ]
+    branches: [主分支]
 
 jobs:
   build:
@@ -27,7 +27,7 @@ jobs:
         yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-34" "build-tools;34.0.0"
         yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
     
-    - name: 添加Material 3依赖（修复主题问题）
+    - name: 添加Material 3依赖
       run: |
         echo "修复Android项目依赖..."
         cd android
@@ -40,7 +40,7 @@ jobs:
         
         echo "Material 3依赖已添加"
     
-    - name: 创建主题文件（如果缺失）
+    - name: 创建主题文件
       run: |
         echo "创建主题文件..."
         cd android
@@ -66,7 +66,7 @@ EOF
         
         echo "主题文件已创建"
     
-    - name: 使用项目自带的gradlew构建
+    - name: 使用gradlew构建
       run: |
         echo "进入android目录..."
         cd android
@@ -78,7 +78,6 @@ EOF
           ./gradlew assembleDebug --stacktrace
         else
           echo "项目没有gradlew，生成gradlew 8.2..."
-          # 下载Gradle 8.2
           wget https://services.gradle.org/distributions/gradle-8.2-bin.zip
           unzip -q gradle-8.2-bin.zip
           ./gradle-8.2/bin/gradle wrapper --gradle-version 8.2
