@@ -1,6 +1,6 @@
 name: Build Android APK
 
-on:
+名称：构建安卓 APK
   push:
     branches:
       - main
@@ -16,97 +16,89 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       with:
-        fetch-depth: 0 # 获取完整历史，防止某些 gradle 插件报错
+        fetch-depth: 0
 
     - name: Setup JDK 17
       uses: actions/setup-java@v4
       with:
         java-version: '17'
-        分布：'temurin'
-        缓存：'gradle'
+        distribution: 'temurin'
+        cache: 'gradle'
 
-    - 名称: 设置 Android SDK
-      使用： android-actions/setup-android@v3
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v3
 
-    - 名称: 安装 Android 组件
-      运行：|
-        是 | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-34" "build-tools;34.0.0"
-        是 | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
+    - name: Install Android components
+      run: |
+        yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-34" "build-tools;34.0.0"
+        yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
 
-    - 名称: 检测项目结构 & 修复 Gradle
-      id： 设置Gradle
-      运行：|
+    - name: Detect Project and Fix Gradle
+      run: |
         echo "🔍 检测项目结构..."
         
-        # 情况 1: 如果根目录就有 build.gradle (通常是 React Native 或纯 Android 根项目)
+        PROJECT_DIR=""
+        
+        # 检查根目录
         if [ -f "build.gradle" ] || [ -f "settings.gradle" ]; then
-          echo "✅ 发现根目录是 Android 项目根路径"
-          echo "PROJECT_DIR=." >> $GITHUB_ENV
-          
-        # 情况 2: 如果有 android 文件夹
+          echo "✅ 发现根目录是 Android 项目"
+          PROJECT_DIR="."
+        # 检查 android 子目录
         elif [ -d "android" ] && [ -f "android/build.gradle" ]; then
           echo "✅ 发现 android 子目录"
-          echo "PROJECT_DIR=android" >> $GITHUB_ENV
-          
-        否则
-          echo "❌ 错误：找不到 Android 项目结构 (未发现 build.gradle 或 android 目录)"
+          PROJECT_DIR="android"
+        else
+          echo "❌ 错误：找不到 Android 项目结构"
           ls -R
-          退出 1
-        输入：         fi
-
+          exit 1
+        fi
+        
+        echo "PROJECT_DIR=$PROJECT_DIR" >> $GITHUB_ENV
+        
         cd $PROJECT_DIR
         
-        # 关键修复：如果 gradlew 不存在，尝试生成它
+        # 如果 gradlew 不存在，尝试生成
         if [ ! -f "gradlew" ]; then
-          echo "⚠️ gradlew 不存在，正在尝试生成..."
-          # 尝试使用系统安装的 gradle 生成 wrapper
-          如果命令 `gradle` 存在且不输出任何内容到终端，则执行以下操作：
+          echo "⚠️ gradlew 不存在，正在生成..."
+          if command -v gradle &> /dev/null; then
             gradle wrapper --gradle-version 8.2
           else
-            # 如果没有 gradle 命令，尝试下载官方脚本生成 (备用方案)
-            echo " downloading gradle wrapper jar..."
+            echo "❌ 未找到 gradle 命令且无 gradlew，尝试使用默认 wrapper"
+            # 创建基本的 wrapper 属性文件
             mkdir -p gradle/wrapper
-            curl -L https://raw.githubusercontent.com/gradle/gradle/master/gradle/wrapper/gradle-wrapper.jar -o gradle/wrapper/gradle-wrapper.jar
-            cat > gradle/wrapper/gradle-wrapper.properties << EOF
-distributionBase=GRADLE_USER_HOME
-distributionPath=wrapper/dists
-distributionUrl=https\://services.gradle.org/distributions/gradle-8.2-bin.zip
-zipStoreBase=GRADLE_USER_HOME
-zipStorePath=wrapper/dists
-EOF
-            # 创建一个简单的 gradlew 脚本 (Linux)
-            cat > gradlew << 'GRADLEW_SCRIPT'
-#!/bin/sh
-exec java -jar "$(dirname "$0")/gradle/wrapper/gradle-wrapper.jar" "$@"
-GRADLEW_SCRIPT
+            echo "distributionUrl=https\://services.gradle.org/distributions/gradle-8.2-bin.zip" > gradle/wrapper/gradle-wrapper.properties
+            # 下载 wrapper jar (使用 curl)
+            curl -L https://raw.githubusercontent.com/gradle/gradle/v8.2.0/gradle/wrapper/gradle-wrapper.jar -o gradle/wrapper/gradle-wrapper.jar
+            # 创建简单的 gradlew 脚本
+            echo '#!/bin/sh' > gradlew
+            echo 'exec java -jar "$(dirname "$0")/gradle/wrapper/gradle-wrapper.jar" "$@"' >> gradlew
             chmod +x gradlew
           fi
         else
           chmod +x gradlew
-          echo "✅ gradlew 已存在并赋予权限"
+          echo "✅ gradlew 已存在"
         fi
 
-        # 验证依赖 (可选，防止缺少 material)
+        # 检查并添加 Material 依赖 (仅当 app/build.gradle 存在时)
         if [ -f "app/build.gradle" ]; then
-           if ! grep -q "com.google.android.material:material" app/build.gradle; then
-             echo "⚠️ 添加 Material 依赖..."
-             sed -i "/dependencies {/a\\    implementation 'com.google.android.material:material:1.11.0'" app/build.gradle
-           fi
+          if ! grep -q "com.google.android.material:material" app/build.gradle; then
+            echo "⚠️ 添加 Material 依赖..."
+            # 使用更安全的 sed 写法，避免 YAML 转义问题
+            sed -i "/dependencies {/a\\    implementation 'com.google.android.material:material:1.11.0'" app/build.gradle
+          fi
         fi
 
     - name: Build APK
       run: |
-        cd $PROJECT_DIR
         echo "🚀 开始在 $PROJECT_DIR 构建..."
-        
-        # 清理并构建
+        cd $PROJECT_DIR
         ./gradlew clean assembleDebug --stacktrace --no-daemon --warning-mode all
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
-      if: always() # 即使失败也尝试运行，方便看日志
+      if: always()
       with:
         name: app-debug-apk
         path: ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/*.apk
         retention-days: 5
-        if-no-files-found: warn # 如果没找到文件只警告，不报错，方便调试
+        if-no-files-found: warn
