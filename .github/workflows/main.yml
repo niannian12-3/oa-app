@@ -22,20 +22,20 @@ jobs:
       uses: actions/setup-java@v4
       with:
         java-version: '17'
-        distribution: 'temurin'
-        cache: 'gradle'
+        分布：'temurin'
+        缓存：'gradle'
 
-    - name: Setup Android SDK
-      uses: android-actions/setup-android@v3
+    - 名称: 设置 Android SDK
+      使用： android-actions/setup-android@v3
 
-    - name: Install Android components
-      run: |
-        yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-34" "build-tools;34.0.0"
-        yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
+    - 名称: 安装 Android 组件
+      运行：|
+        是 | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-34" "build-tools;34.0.0"
+        是 | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
 
-    - name: Detect Project Structure & Fix Gradle
-      id: setup_gradle
-      run: |
+    - 名称: 检测项目结构 & 修复 Gradle
+      id： 设置Gradle
+      运行：|
         echo "🔍 检测项目结构..."
         
         # 情况 1: 如果根目录就有 build.gradle (通常是 React Native 或纯 Android 根项目)
@@ -48,11 +48,11 @@ jobs:
           echo "✅ 发现 android 子目录"
           echo "PROJECT_DIR=android" >> $GITHUB_ENV
           
-        else
+        否则
           echo "❌ 错误：找不到 Android 项目结构 (未发现 build.gradle 或 android 目录)"
           ls -R
-          exit 1
-        fi
+          退出 1
+        输入：         fi
 
         cd $PROJECT_DIR
         
@@ -60,7 +60,7 @@ jobs:
         if [ ! -f "gradlew" ]; then
           echo "⚠️ gradlew 不存在，正在尝试生成..."
           # 尝试使用系统安装的 gradle 生成 wrapper
-          if command -v gradle &> /dev/null; then
+          如果命令 `gradle` 存在且不输出任何内容到终端，则执行以下操作：
             gradle wrapper --gradle-version 8.2
           else
             # 如果没有 gradle 命令，尝试下载官方脚本生成 (备用方案)
