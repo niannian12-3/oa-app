@@ -22,34 +22,40 @@ jobs:
           yes | sdkmanager --licenses
           sdkmanager "platforms;android-34" "build-tools;34.0.0"
           cd $GITHUB_WORKSPACE
-      - name: Fix all missing resources
+      - name: Fix Android project - USE APPCOMPAT THEME
         run: |
           if [ -d "android" ]; then
             cd android
             
-            # 1. 添加Material依赖
-            if grep -q "dependencies {" app/build.gradle; then
-              if ! grep -q "com.google.android.material:material" app/build.gradle; then
-                sed -i '/dependencies {/a\    implementation "com.google.android.material:material:1.11.0"' app/build.gradle
+            # 1. 确保有AppCompat依赖
+            if [ -f "app/build.gradle" ]; then
+              # 检查是否已经有dependencies块
+              if grep -q "dependencies {" app/build.gradle; then
+                # 添加AppCompat依赖
+                if ! grep -q "androidx.appcompat:appcompat" app/build.gradle; then
+                  sed -i '/dependencies {/a\    implementation "androidx.appcompat:appcompat:1.6.1"' app/build.gradle
+                fi
+              else
+                # 如果没有dependencies块，在文件末尾添加
+                echo '' >> app/build.gradle
+                echo 'dependencies {' >> app/build.gradle
+                echo '    implementation "androidx.appcompat:appcompat:1.6.1"' >> app/build.gradle
+                echo '}' >> app/build.gradle
               fi
             fi
             
-            # 2. 创建主题文件
+            # 2. 创建使用AppCompat的主题文件
             mkdir -p app/src/main/res/values
             echo '<?xml version="1.0" encoding="utf-8"?>' > app/src/main/res/values/themes.xml
-            echo '<resources xmlns:tools="http://schemas.android.com/tools">' >> app/src/main/res/values/themes.xml
-            echo '    <style name="Theme.OAApp" parent="Theme.Material3.DayNight.DarkActionBar">' >> app/src/main/res/values/themes.xml
-            echo '        <item name="colorPrimary">#6200EE</item>' >> app/src/main/res/values/themes.xml
-            echo '        <item name="colorPrimaryVariant">#3700B3</item>' >> app/src/main/res/values/themes.xml
-            echo '        <item name="colorOnPrimary">#FFFFFF</item>' >> app/src/main/res/values/themes.xml
-            echo '        <item name="colorSecondary">#03DAC6</item>' >> app/src/main/res/values/themes.xml
-            echo '        <item name="colorSecondaryVariant">#018786</item>' >> app/src/main/res/values/themes.xml
-            echo '        <item name="colorOnSecondary">#000000</item>' >> app/src/main/res/values/themes.xml
-            echo '        <item name="android:statusBarColor" tools:targetApi="l">?attr/colorPrimaryVariant</item>' >> app/src/main/res/values/themes.xml
+            echo '<resources>' >> app/src/main/res/values/themes.xml
+            echo '    <style name="Theme.OAApp" parent="Theme.AppCompat.Light.DarkActionBar">' >> app/src/main/res/values/themes.xml
+            echo '        <item name="colorPrimary">#3F51B5</item>' >> app/src/main/res/values/themes.xml
+            echo '        <item name="colorPrimaryDark">#303F9F</item>' >> app/src/main/res/values/themes.xml
+            echo '        <item name="colorAccent">#FF4081</item>' >> app/src/main/res/values/themes.xml
             echo '    </style>' >> app/src/main/res/values/themes.xml
             echo '</resources>' >> app/src/main/res/values/themes.xml
             
-            # 3. 创建完整的strings.xml - 添加所有缺失的字符串
+            # 3. 创建完整的strings.xml
             echo '<?xml version="1.0" encoding="utf-8"?>' > app/src/main/res/values/strings.xml
             echo '<resources>' >> app/src/main/res/values/strings.xml
             echo '    <string name="app_name">OA App</string>' >> app/src/main/res/values/strings.xml
@@ -68,39 +74,27 @@ jobs:
             echo '    <string name="leave">Leave</string>' >> app/src/main/res/values/strings.xml
             echo '    <string name="expense">Expense</string>' >> app/src/main/res/values/strings.xml
             echo '    <string name="employees">Employees</string>' >> app/src/main/res/values/strings.xml
-            echo '    <string name="home">Home</string>' >> app/src/main/res/values/strings.xml
-            echo '    <string name="dashboard">Dashboard</string>' >> app/src/main/res/values/strings.xml
-            echo '    <string name="notifications">Notifications</string>' >> app/src/main/res/values/strings.xml
-            echo '    <string name="submit">Submit</string>' >> app/src/main/res/values/strings.xml
-            echo '    <string name="cancel">Cancel</string>' >> app/src/main/res/values/strings.xml
-            echo '    <string name="save">Save</string>' >> app/src/main/res/values/strings.xml
-            echo '    <string name="delete">Delete</string>' >> app/src/main/res/values/strings.xml
-            echo '    <string name="edit">Edit</string>' >> app/src/main/res/values/strings.xml
-            echo '    <string name="add">Add</string>' >> app/src/main/res/values/strings.xml
-            echo '    <string name="search">Search</string>' >> app/src/main/res/values/strings.xml
-            echo '    <string name="settings">Settings</string>' >> app/src/main/res/values/strings.xml
-            echo '    <string name="profile">Profile</string>' >> app/src/main/res/values/strings.xml
-            echo '    <string name="logout">Logout</string>' >> app/src/main/res/values/strings.xml
-            echo '    <string name="welcome">Welcome</string>' >> app/src/main/res/values/strings.xml
             echo '</resources>' >> app/src/main/res/values/strings.xml
             
-            # 4. 创建图标目录（避免图标错误）
-            mkdir -p app/src/main/res/mipmap-hdpi
-            mkdir -p app/src/main/res/mipmap-mdpi
-            mkdir -p app/src/main/res/mipmap-xhdpi
-            mkdir -p app/src/main/res/mipmap-xxhdpi
-            mkdir -p app/src/main/res/mipmap-xxxhdpi
-            
-            # 5. 修复AndroidManifest
+            # 4. 修复AndroidManifest.xml - 强制使用AppCompat主题
             if [ -f "app/src/main/AndroidManifest.xml" ]; then
+              # 读取文件内容
+              content=$(cat app/src/main/AndroidManifest.xml)
+              
+              # 替换所有主题引用为Theme.OAApp
+              content=${content//Theme\.Material3\.DayNight\.DarkActionBar/Theme.OAApp}
+              content=${content//Theme\.Material3/Theme.OAApp}
+              content=${content//android:theme=\"@style\/Theme\"/android:theme=\"@style\/Theme.OAApp\"}
+              
               # 移除图标引用
-              sed -i 's/android:icon="@mipmap\/ic_launcher"//g' app/src/main/AndroidManifest.xml
-              sed -i 's/android:roundIcon="@mipmap\/ic_launcher_round"//g' app/src/main/AndroidManifest.xml
-              # 确保使用正确的主题
-              sed -i 's/android:theme="@style\/Theme\..*"/android:theme="@style\/Theme.OAApp"/g' app/src/main/AndroidManifest.xml
+              content=${content//android:icon=\"@mipmap\/ic_launcher\"/}
+              content=${content//android:roundIcon=\"@mipmap\/ic_launcher_round\"/}
+              
+              # 写回文件
+              echo "$content" > app/src/main/AndroidManifest.xml
             fi
             
-            echo "所有资源已修复完成"
+            echo "项目修复完成：使用AppCompat主题"
           fi
       - run: |
           if [ -d "android" ]; then
