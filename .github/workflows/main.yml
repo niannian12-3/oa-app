@@ -31,66 +31,52 @@ jobs:
         yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-34" "build-tools;34.0.0"
         yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
     
-    - name: Fix Android project - SIMPLE VERSION
+    - name: Fix Android dependencies
       run: |
         cd android
         
-        # 1. 确保gradlew存在
+        # 确保gradlew存在
         if [ ! -f "gradlew" ]; then
-          echo "Creating gradle wrapper..."
-          ./gradle/wrapper/gradle wrapper --gradle-version 8.2 || true
+          echo "gradlew not found, checking gradle directory..."
+          ls -la gradle/wrapper/ || true
         fi
         
-        # 2. 添加Material依赖（在正确位置）
+        # 添加Material依赖
         if grep -q "dependencies {" app/build.gradle; then
           if ! grep -q "com.google.android.material:material" app/build.gradle; then
-            # 在dependencies块内添加
+            echo 'Adding Material dependency...'
             sed -i '/dependencies {/a\    implementation "com.google.android.material:material:1.11.0"' app/build.gradle
           fi
         fi
-        
-        # 3. 添加Material 3依赖
-        if grep -q "dependencies {" app/build.gradle; then
-          if ! grep -q "androidx.compose.material3:material3" app/build.gradle; then
-            sed -i '/dependencies {/a\    implementation "androidx.compose.material3:material3:1.1.2"' app/build.gradle
-          fi
-        fi
-        
-        # 4. 检查主题文件
-        echo "Checking theme files..."
-        find . -name "*.xml" -type f | xargs grep -l "Theme" || true
     
-    - name: Try alternative theme fix
+    - name: Create simple theme
       run: |
         cd android
         
-        # 如果主题文件有问题，创建一个简单版本
+        # 创建简单主题文件（没有heredoc）
         mkdir -p app/src/main/res/values
+        echo '<?xml version="1.0" encoding="utf-8"?>' > app/src/main/res/values/themes.xml
+        echo '<resources>' >> app/src/main/res/values/themes.xml
+        echo '    <style name="AppTheme" parent="Theme.AppCompat.Light.DarkActionBar">' >> app/src/main/res/values/themes.xml
+        echo '        <item name="colorPrimary">#3F51B5</item>' >> app/src/main/res/values/themes.xml
+        echo '        <item name="colorPrimaryDark">#303F9F</item>' >> app/src/main/res/values/themes.xml
+        echo '        <item name="colorAccent">#FF4081</item>' >> app/src/main/res/values/themes.xml
+        echo '    </style>' >> app/src/main/res/values/themes.xml
+        echo '</resources>' >> app/src/main/res/values/themes.xml
         
-        # 创建最简单的主题文件
-        cat > app/src/main/res/values/themes.xml << 'EOF'
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <style name="AppTheme" parent="Theme.AppCompat.Light.DarkActionBar">
-        <item name="colorPrimary">#3F51B5</item>
-        <item name="colorPrimaryDark">#303F9F</item>
-        <item name="colorAccent">#FF4081</item>
-    </style>
-</resources>
-EOF
-        
-        # 更新AndroidManifest.xml使用简单主题
+        # 更新AndroidManifest使用简单主题
         if [ -f "app/src/main/AndroidManifest.xml" ]; then
-          sed -i 's/Theme.Material3.DayNight.DarkActionBar/AppTheme/g' app/src/main/AndroidManifest.xml
-          sed -i 's/Theme.Material3.Light.DarkActionBar/AppTheme/g' app/src/main/AndroidManifest.xml
+          sed -i 's/Theme\.Material3\.DayNight\.DarkActionBar/AppTheme/g' app/src/main/AndroidManifest.xml
+          sed -i 's/Theme\.Material3\.Light\.DarkActionBar/AppTheme/g' app/src/main/AndroidManifest.xml
+          sed -i 's/Theme\.Material3/AppTheme/g' app/src/main/AndroidManifest.xml
         fi
     
     - name: Build APK
       run: |
         cd android
-        chmod +x gradlew || true
+        chmod +x gradlew 2>/dev/null || true
         ./gradlew clean
-        ./gradlew assembleDebug --stacktrace --no-daemon
+        ./gradlew assembleDebug --stacktrace
     
     - name: Upload APK
       uses: actions/upload-artifact@v4
