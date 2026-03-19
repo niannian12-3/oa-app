@@ -32,7 +32,7 @@ jobs:
         echo "修复Android项目..."
         cd android
         
-        # 方法：直接创建修复脚本
+        # 创建修复脚本
         cat > fix_project.sh << 'EOF'
 #!/bin/bash
 # 添加Material依赖
@@ -42,7 +42,7 @@ fi
 
 # 创建主题文件
 mkdir -p app/src/main/res/values
-cat > app/src/main/res/values/themes.xml << 'THEME_EOF'
+cat > app/src/main/res/values/themes.xml << 'THEMEEOF'
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
     <style name="Theme.Material3.DayNight.DarkActionBar" parent="Theme.Material3.DayNight">
@@ -55,7 +55,7 @@ cat > app/src/main/res/values/themes.xml << 'THEME_EOF'
         <item name="android:statusBarColor" tools:targetApi="l">?attr/colorPrimaryVariant</item>
     </style>
 </resources>
-THEME_EOF
+THEMEEOF
 EOF
         
         chmod +x fix_project.sh
