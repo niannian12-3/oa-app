@@ -27,29 +27,35 @@ jobs:
         yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-34" "build-tools;34.0.0"
         yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
     
-    - name: 添加Material 3依赖
+    - name: 修复Android项目
       run: |
-        echo "修复Android项目依赖..."
+        echo "修复Android项目..."
         cd android
         
-        # 备份原始build.gradle
-        cp app/build.gradle app/build.gradle.backup
-        
-        # 添加Material 3依赖
-        sed -i "/dependencies {/a\    implementation 'com.google.android.material:material:1.11.0'" app/build.gradle
-        
-        echo "Material 3依赖已添加"
+        # 方法1：直接修改build.gradle - 最简单可靠
+        if ! grep -q "com.google.android.material:material" app/build.gradle; then
+          echo "正在添加Material 3依赖..."
+          # 创建临时文件
+          cat > /tmp/fix_deps.py << 'EOF'
+import re
+with open('app/build.gradle', 'r') as f:
+    content = f.read()
     
-    - name: 创建主题文件
-      run: |
-        echo "创建主题文件..."
-        cd android
+# 在dependencies块中添加Material依赖
+pattern = r'(dependencies\s*\{)'
+replacement = r'\1\n    implementation "com.google.android.material:material:1.11.0"'
+new_content = re.sub(pattern, replacement, content, count=1)
+
+with open('app/build.gradle', 'w') as f:
+    f.write(new_content)
+EOF
+          python3 /tmp/fix_deps.py
+        fi
         
-        # 创建主题目录
+        # 确保主题文件存在
         mkdir -p app/src/main/res/values
-        
-        # 创建主题文件
-        cat > app/src/main/res/values/themes.xml << 'EOF'
+        if [ ! -f "app/src/main/res/values/themes.xml" ]; then
+          cat > app/src/main/res/values/themes.xml << 'EOF'
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
     <style name="Theme.Material3.DayNight.DarkActionBar" parent="Theme.Material3.DayNight">
@@ -63,27 +69,15 @@ jobs:
     </style>
 </resources>
 EOF
-        
-        echo "主题文件已创建"
-    
-    - name: 使用gradlew构建
-      run: |
-        echo "进入android目录..."
-        cd android
-        
-        echo "检查gradlew文件..."
-        if [ -f "gradlew" ]; then
-          echo "使用项目自带的gradlew..."
-          chmod +x gradlew
-          ./gradlew assembleDebug --stacktrace
-        else
-          echo "项目没有gradlew，生成gradlew 8.2..."
-          wget https://services.gradle.org/distributions/gradle-8.2-bin.zip
-          unzip -q gradle-8.2-bin.zip
-          ./gradle-8.2/bin/gradle wrapper --gradle-version 8.2
-          chmod +x gradlew
-          ./gradlew assembleDebug --stacktrace
         fi
+        
+        echo "项目修复完成"
+    
+    - name: 构建APK
+      run: |
+        cd android
+        chmod +x gradlew
+        ./gradlew assembleDebug --stacktrace
     
     - name: 上传 APK
       uses: actions/upload-artifact@v4
