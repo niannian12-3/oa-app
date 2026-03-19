@@ -1,101 +1,37 @@
-name: Build Android APK
-
-on:
-  push:
-    branches:
-      - main
-
+name: Build APK
+on: [push]
 jobs:
   build:
     runs-on: ubuntu-latest
-    
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-    
-    - name: Setup environment
-      run: |
-        echo "Setting up environment..."
-        sudo apt-get update
-        sudo apt-get install -y openjdk-17-jdk wget unzip
-        
-        mkdir -p ~/android-sdk
-        cd ~/android-sdk
-        wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
-        unzip -q commandlinetools-linux-9477386_latest.zip
-        mkdir -p cmdline-tools/latest
-        mv cmdline-tools/* cmdline-tools/latest/
-        
-        export ANDROID_HOME=~/android-sdk
-        export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin
-        
-        yes | sdkmanager --licenses
-        sdkmanager "platforms;android-34" "build-tools;34.0.0"
-        
-        cd $GITHUB_WORKSPACE
-    
-    - name: Build APK
-      run: |
-        echo "Building APK..."
-        
-        if [ -d "android" ]; then
-          cd android
-          
-          if [ ! -f "gradlew" ]; then
-            echo "Creating gradlew..."
-            wget -q https://services.gradle.org/distributions/gradle-8.2-bin.zip
-            unzip -q gradle-8.2-bin.zip
-            ./gradle-8.2/bin/gradle wrapper --gradle-version 8.2
+      - uses: actions/checkout@v4
+      - run: |
+          sudo apt update
+          sudo apt install -y openjdk-17-jdk wget unzip
+          mkdir -p ~/android-sdk
+          cd ~/android-sdk
+          wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
+          unzip -q commandlinetools-linux-9477386_latest.zip
+          mkdir -p cmdline-tools/latest
+          mv cmdline-tools/* cmdline-tools/latest/
+          export ANDROID_HOME=~/android-sdk
+          export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin
+          yes | sdkmanager --licenses
+          sdkmanager "platforms;android-34" "build-tools;34.0.0"
+          cd $GITHUB_WORKSPACE
+      - run: |
+          if [ -d "android" ]; then
+            cd android
+            if [ -f "gradlew" ]; then
+              chmod +x gradlew
+              ./gradlew assembleDebug
+            else
+              echo "gradlew not found"
+            fi
+          else
+            echo "android directory not found"
           fi
-          
-          chmod +x gradlew
-          ./gradlew assembleDebug
-        else
-          echo "No android directory found. Creating simple APK..."
-          
-          mkdir -p simple-app
-          cd simple-app
-          
-          # 使用cat命令创建文件，避免echo嵌套问题
-          cat > build.gradle << 'BUILDEOF'
-plugins {
-  id "com.android.application"
-}
-
-android {
-  namespace "com.simple.app"
-  compileSdk 34
-  
-  defaultConfig {
-    applicationId "com.simple.app"
-    minSdk 21
-    targetSdk 34
-    versionCode 1
-    versionName "1.0"
-  }
-  
-  buildTypes {
-    debug {
-      debuggable true
-    }
-  }
-}
-
-dependencies {
-  implementation "androidx.appcompat:appcompat:1.6.1"
-}
-BUILDEOF
-          
-          wget -q https://services.gradle.org/distributions/gradle-8.2-bin.zip
-          unzip -q gradle-8.2-bin.zip
-          ./gradle-8.2/bin/gradle assembleDebug
-        fi
-    
-    - name: Upload APK
-      uses: actions/upload-artifact@v4
-      with:
-        name: android-apk
-        path: |
-          android/app/build/outputs/apk/debug/*.apk
-          simple-app/build/outputs/apk/debug/*.apk
-        retention-days: 30
+      - uses: actions/upload-artifact@v4
+        with:
+          name: apk
+          path: android/app/build/outputs/apk/debug/*.apk
