@@ -1,6 +1,6 @@
 name: 构建安卓APK
 
-on:
+名称：构建安卓APK:
   push:
     branches: [ main ]
 
@@ -9,7 +9,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-      ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
     
     steps:
     - uses: actions/checkout@v4
@@ -22,57 +21,32 @@ jobs:
     
     - name: 设置 Android SDK
       uses: android-actions/setup-android@v3
-      with:
-        api-level: 34
-        build-tools: 34.0.0
-        ndk: 25.2.9519653
-        cmake: 3.22.1
-        emulator: false
     
-    - name: 接受 Android 许可证
+    - name: 安装 Android SDK 组件
       run: |
-        yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
+        yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-34" "build-tools;34.0.0"
+        yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
     
-    - name: 检查项目结构
+    - name: 生成gradlew并构建APK
       run: |
-        echo "项目根目录："
-        ls -la
-        echo "寻找gradle文件..."
-        find . -name "gradlew" -type f | head -5
-        find . -name "build.gradle" -type f | head -5
-    
-    - name: 生成调试版APK
-      run: |
-        # 尝试不同的路径
-        if [ -f "android/gradlew" ]; then
-          echo "使用 android/gradlew"
-          cd android
-        elif [ -f "./gradlew" ]; then
-          echo "使用根目录 gradlew"
-        elif [ -f "app/gradlew" ]; then
-          echo "使用 app/gradlew"
-          cd app
-        else
-          echo "错误：找不到gradlew文件"
-          find . -name "*.gradle*" -type f
-          exit 1
+        echo "进入android目录..."
+        cd android
+        
+        echo "检查gradlew..."
+        if [ ! -f "gradlew" ]; then
+          echo "生成gradlew文件..."
+          gradle wrapper --gradle-version 7.5
         fi
         
+        echo "给gradlew执行权限..."
         chmod +x gradlew
+        
+        echo "开始构建..."
         ./gradlew assembleDebug --stacktrace
-    
-    - name: 查找APK文件
-      run: |
-        echo "搜索APK文件..."
-        find . -name "*.apk" -type f | head -10
-        echo "APK文件详情："
-        find . -name "*.apk" -type f -exec ls -la {} \;
     
     - name: 上传 APK
       uses: actions/upload-artifact@v4
       with:
         name: oa-app-debug
-        path: |
-          **/build/outputs/apk/debug/*.apk
-          **/build/outputs/apk/*debug*.apk
+        path: android/app/build/outputs/apk/debug/*.apk
         retention-days: 30
