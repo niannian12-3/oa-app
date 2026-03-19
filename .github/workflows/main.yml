@@ -9,6 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+      ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true  # 临时忽略Node.js版本警告
     
     steps:
     - uses: actions/checkout@v4
@@ -26,12 +27,7 @@ jobs:
       run: |
         cd android
         chmod +x gradlew
-        ./gradlew assembleDebug
-    
-    - name: 检查APK文件
-      run: |
-        ls -la android/app/build/outputs/apk/debug/ || echo "APK目录不存在"
-        find . -name "*.apk" -type f || echo "未找到APK文件"
+        ./gradlew assembleDebug --stacktrace  # 加上--stacktrace看详细错误
     
     - name: 上传 APK
       uses: actions/upload-artifact@v4
