@@ -19,7 +19,6 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y openjdk-17-jdk wget unzip
         
-        # 设置Android SDK
         mkdir -p ~/android-sdk
         cd ~/android-sdk
         wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
@@ -30,7 +29,6 @@ jobs:
         export ANDROID_HOME=~/android-sdk
         export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin
         
-        # 接受许可
         yes | sdkmanager --licenses
         sdkmanager "platforms;android-34" "build-tools;34.0.0"
         
@@ -40,11 +38,9 @@ jobs:
       run: |
         echo "Building APK..."
         
-        # 检查是否有android目录
         if [ -d "android" ]; then
           cd android
           
-          # 确保gradlew存在
           if [ ! -f "gradlew" ]; then
             echo "Creating gradlew..."
             wget -q https://services.gradle.org/distributions/gradle-8.2-bin.zip
@@ -57,11 +53,12 @@ jobs:
         else
           echo "No android directory found. Creating simple APK..."
           
-          # 创建最简单的Android项目
           mkdir -p simple-app
           cd simple-app
           
-          echo 'plugins {
+          # 使用cat命令创建文件，避免echo嵌套问题
+          cat > build.gradle << 'BUILDEOF'
+plugins {
   id "com.android.application"
 }
 
@@ -86,9 +83,9 @@ android {
 
 dependencies {
   implementation "androidx.appcompat:appcompat:1.6.1"
-}' > build.gradle
+}
+BUILDEOF
           
-          # 使用gradle直接构建
           wget -q https://services.gradle.org/distributions/gradle-8.2-bin.zip
           unzip -q gradle-8.2-bin.zip
           ./gradle-8.2/bin/gradle assembleDebug
