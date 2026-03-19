@@ -27,17 +27,25 @@ jobs:
         yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-34" "build-tools;34.0.0"
         yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
     
-    - name: 使用Gradle 7.5构建
+    - name: 使用项目自带的gradlew构建
       run: |
         echo "进入android目录..."
         cd android
         
-        echo "下载Gradle 7.5..."
-        wget https://services.gradle.org/distributions/gradle-7.5-bin.zip
-        unzip -q gradle-7.5-bin.zip
-        
-        echo "使用Gradle 7.5构建..."
-        ./gradle-7.5/bin/gradle assembleDebug --stacktrace
+        echo "检查gradlew文件..."
+        if [ -f "gradlew" ]; then
+          echo "使用项目自带的gradlew..."
+          chmod +x gradlew
+          ./gradlew assembleDebug --stacktrace
+        else
+          echo "项目没有gradlew，生成gradlew 8.2..."
+          # 下载Gradle 8.2
+          wget https://services.gradle.org/distributions/gradle-8.2-bin.zip
+          unzip -q gradle-8.2-bin.zip
+          ./gradle-8.2/bin/gradle wrapper --gradle-version 8.2
+          chmod +x gradlew
+          ./gradlew assembleDebug --stacktrace
+        fi
     
     - name: 上传 APK
       uses: actions/upload-artifact@v4
