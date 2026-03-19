@@ -1,6 +1,6 @@
-name:         保留天数：30
+name: 构建安卓APK
 
-on名称：构建安卓APK
+on:
   push:
     branches: [ main ]
 
