@@ -27,37 +27,32 @@ jobs:
           if [ -d "android" ]; then
             cd android
             
-            # 1. 添加Material 3依赖
+            # 添加Material依赖
             if grep -q "dependencies {" app/build.gradle; then
               if ! grep -q "com.google.android.material:material" app/build.gradle; then
                 sed -i '/dependencies {/a\    implementation "com.google.android.material:material:1.11.0"' app/build.gradle
               fi
             fi
             
-            # 2. 创建主题文件
+            # 创建主题文件（没有heredoc）
             mkdir -p app/src/main/res/values
-            cat > app/src/main/res/values/themes.xml << 'EOF'
-<?xml version="1.0" encoding="utf-8"?>
-<resources xmlns:tools="http://schemas.android.com/tools">
-    <style name="Theme.Material3.DayNight.DarkActionBar" parent="Theme.Material3.DayNight">
-        <item name="colorPrimary">#6200EE</item>
-        <item name="colorPrimaryVariant">#3700B3</item>
-        <item name="colorOnPrimary">#FFFFFF</item>
-        <item name="colorSecondary">#03DAC6</item>
-        <item name="colorSecondaryVariant">#018786</item>
-        <item name="colorOnSecondary">#000000</item>
-        <item name="android:statusBarColor" tools:targetApi="l">?attr/colorPrimaryVariant</item>
-    </style>
-</resources>
-EOF
+            echo '<?xml version="1.0" encoding="utf-8"?>' > app/src/main/res/values/themes.xml
+            echo '<resources xmlns:tools="http://schemas.android.com/tools">' >> app/src/main/res/values/themes.xml
+            echo '    <style name="Theme.Material3.DayNight.DarkActionBar" parent="Theme.Material3.DayNight">' >> app/src/main/res/values/themes.xml
+            echo '        <item name="colorPrimary">#6200EE</item>' >> app/src/main/res/values/themes.xml
+            echo '        <item name="colorPrimaryVariant">#3700B3</item>' >> app/src/main/res/values/themes.xml
+            echo '        <item name="colorOnPrimary">#FFFFFF</item>' >> app/src/main/res/values/themes.xml
+            echo '        <item name="colorSecondary">#03DAC6</item>' >> app/src/main/res/values/themes.xml
+            echo '        <item name="colorSecondaryVariant">#018786</item>' >> app/src/main/res/values/themes.xml
+            echo '        <item name="colorOnSecondary">#000000</item>' >> app/src/main/res/values/themes.xml
+            echo '        <item name="android:statusBarColor" tools:targetApi="l">?attr/colorPrimaryVariant</item>' >> app/src/main/res/values/themes.xml
+            echo '    </style>' >> app/src/main/res/values/themes.xml
+            echo '</resources>' >> app/src/main/res/values/themes.xml
             
-            # 3. 或者修改AndroidManifest使用简单主题
+            # 修改AndroidManifest使用简单主题（如果还不行）
             if [ -f "app/src/main/AndroidManifest.xml" ]; then
-              # 备份原始文件
               cp app/src/main/AndroidManifest.xml app/src/main/AndroidManifest.xml.backup
-              # 替换主题
               sed -i 's/Theme\.Material3\.DayNight\.DarkActionBar/Theme\.AppCompat\.Light\.DarkActionBar/g' app/src/main/AndroidManifest.xml
-              sed -i 's/Theme\.Material3/Theme\.AppCompat\.Light\.DarkActionBar/g' app/src/main/AndroidManifest.xml
             fi
           fi
       - run: |
