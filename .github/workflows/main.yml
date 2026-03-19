@@ -32,30 +32,17 @@ jobs:
         echo "修复Android项目..."
         cd android
         
-        # 方法1：直接修改build.gradle - 最简单可靠
+        # 检查并添加Material依赖
         if ! grep -q "com.google.android.material:material" app/build.gradle; then
           echo "正在添加Material 3依赖..."
-          # 创建临时文件
-          cat > /tmp/fix_deps.py << 'EOF'
-import re
-with open('app/build.gradle', 'r') as f:
-    content = f.read()
-    
-# 在dependencies块中添加Material依赖
-pattern = r'(dependencies\s*\{)'
-replacement = r'\1\n    implementation "com.google.android.material:material:1.11.0"'
-new_content = re.sub(pattern, replacement, content, count=1)
-
-with open('app/build.gradle', 'w') as f:
-    f.write(new_content)
-EOF
-          python3 /tmp/fix_deps.py
+          # 使用简单可靠的echo追加
+          sed -i '/dependencies {/a\    implementation "com.google.android.material:material:1.11.0"' app/build.gradle
         fi
         
         # 确保主题文件存在
         mkdir -p app/src/main/res/values
         if [ ! -f "app/src/main/res/values/themes.xml" ]; then
-          cat > app/src/main/res/values/themes.xml << 'EOF'
+          cat > app/src/main/res/values/themes.xml << 'THEME_EOF'
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
     <style name="Theme.Material3.DayNight.DarkActionBar" parent="Theme.Material3.DayNight">
@@ -68,7 +55,7 @@ EOF
         <item name="android:statusBarColor" tools:targetApi="l">?attr/colorPrimaryVariant</item>
     </style>
 </resources>
-EOF
+THEME_EOF
         fi
         
         echo "项目修复完成"
