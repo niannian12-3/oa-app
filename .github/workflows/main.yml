@@ -1,6 +1,6 @@
-name: 构建安卓APK
+name:         保留天数：30
 
-on:
+on名称：构建安卓APK
   push:
     branches: [ main ]
 
@@ -27,22 +27,29 @@ jobs:
         yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-34" "build-tools;34.0.0"
         yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
     
-    - name: 生成gradlew并构建APK
+    - name: 使用项目自带的gradlew构建
       run: |
-        echo "进入android目录..."
-        cd android
+        echo "检查项目自带的gradlew..."
         
-        echo "检查gradlew..."
-        if [ ! -f "gradlew" ]; then
-          echo "生成gradlew文件..."
-          gradle wrapper --gradle-version 7.5
+        # 如果项目有gradlew就用项目的，没有就用gradle命令
+        if [ -f "android/gradlew" ]; then
+          echo "使用项目自带的gradlew..."
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug --stacktrace
+        else
+          echo "项目没有gradlew，使用gradle命令..."
+          cd android
+          
+          # 先检查项目用的Gradle版本
+          if [ -f "gradle/wrapper/gradle-wrapper.properties" ]; then
+            echo "查看gradle-wrapper.properties..."
+            cat gradle/wrapper/gradle-wrapper.properties
+          fi
+          
+          # 使用兼容的Gradle版本
+          gradle assembleDebug --stacktrace --gradle-version 7.5
         fi
-        
-        echo "给gradlew执行权限..."
-        chmod +x gradlew
-        
-        echo "开始构建..."
-        ./gradlew assembleDebug --stacktrace
     
     - name: 上传 APK
       uses: actions/upload-artifact@v4
