@@ -14,7 +14,6 @@ jobs:
           cd ~/android-sdk
           wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
           unzip -q commandlinetools-linux-9477386_latest.zip
-          # 修复mv命令
           mv cmdline-tools cmdline-tools-temp
           mkdir -p cmdline-tools
           mv cmdline-tools-temp cmdline-tools/latest
@@ -23,19 +22,56 @@ jobs:
           yes | sdkmanager --licenses
           sdkmanager "platforms;android-34" "build-tools;34.0.0"
           cd $GITHUB_WORKSPACE
+      - name: Fix theme issue
+        run: |
+          if [ -d "android" ]; then
+            cd android
+            
+            # 1. 添加Material 3依赖
+            if grep -q "dependencies {" app/build.gradle; then
+              if ! grep -q "com.google.android.material:material" app/build.gradle; then
+                sed -i '/dependencies {/a\    implementation "com.google.android.material:material:1.11.0"' app/build.gradle
+              fi
+            fi
+            
+            # 2. 创建主题文件
+            mkdir -p app/src/main/res/values
+            cat > app/src/main/res/values/themes.xml << 'EOF'
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <style name="Theme.Material3.DayNight.DarkActionBar" parent="Theme.Material3.DayNight">
+        <item name="colorPrimary">#6200EE</item>
+        <item name="colorPrimaryVariant">#3700B3</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="colorSecondary">#03DAC6</item>
+        <item name="colorSecondaryVariant">#018786</item>
+        <item name="colorOnSecondary">#000000</item>
+        <item name="android:statusBarColor" tools:targetApi="l">?attr/colorPrimaryVariant</item>
+    </style>
+</resources>
+EOF
+            
+            # 3. 或者修改AndroidManifest使用简单主题
+            if [ -f "app/src/main/AndroidManifest.xml" ]; then
+              # 备份原始文件
+              cp app/src/main/AndroidManifest.xml app/src/main/AndroidManifest.xml.backup
+              # 替换主题
+              sed -i 's/Theme\.Material3\.DayNight\.DarkActionBar/Theme\.AppCompat\.Light\.DarkActionBar/g' app/src/main/AndroidManifest.xml
+              sed -i 's/Theme\.Material3/Theme\.AppCompat\.Light\.DarkActionBar/g' app/src/main/AndroidManifest.xml
+            fi
+          fi
       - run: |
           if [ -d "android" ]; then
             cd android
             if [ -f "gradlew" ]; then
               chmod +x gradlew
-              ./gradlew assembleDebug
+              ./gradlew assembleDebug --stacktrace
             else
-              echo "gradlew not found, trying to create it..."
               wget -q https://services.gradle.org/distributions/gradle-8.2-bin.zip
               unzip -q gradle-8.2-bin.zip
               ./gradle-8.2/bin/gradle wrapper --gradle-version 8.2
               chmod +x gradlew
-              ./gradlew assembleDebug
+              ./gradlew assembleDebug --stacktrace
             fi
           else
             echo "android directory not found"
