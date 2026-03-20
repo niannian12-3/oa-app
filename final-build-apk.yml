@@ -1,0 +1,92 @@
+name: Build APK
+
+on: [push]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Java
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+    
+    - name: Setup Android SDK
+      run: |
+        # 安装Android命令行工具
+        wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
+        unzip -q commandlinetools-linux-9477386_latest.zip
+        mkdir -p android-sdk/cmdline-tools
+        mv cmdline-tools android-sdk/cmdline-tools/latest
+        
+        # 设置环境变量
+        echo "ANDROID_HOME=$PWD/android-sdk" >> $GITHUB_ENV
+        echo "$PWD/android-sdk/cmdline-tools/latest/bin" >> $GITHUB_PATH
+        
+        # 接受许可证
+        yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
+        
+        # 安装必要的Android组件
+        $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-34" "build-tools;34.0.0" "platform-tools"
+    
+    - name: Fix compilation issues
+      run: |
+        echo "=== 修复编译问题 ==="
+        
+        # 1. 修复AuthManager.kt - 使用正确的Flow.first()调用
+        if [ -f "android/app/src/main/java/com/oa/app/util/AuthManager.kt" ]; then
+          echo "修复AuthManager.kt..."
+          # 确保有正确的导入
+          sed -i 's/\.firstOrNull()/.first()/g' android/app/src/main/java/com/oa/app/util/AuthManager.kt
+        fi
+        
+        # 2. 修复LocationHelper.kt - 确保有正确的导入
+        if [ -f "android/app/src/main/java/com/oa/app/util/LocationHelper.kt" ]; then
+          echo "修复LocationHelper.kt..."
+          # 检查并修复导入
+          if ! grep -q "import kotlinx.coroutines.tasks.await" android/app/src/main/java/com/oa/app/util/LocationHelper.kt; then
+            sed -i '/import kotlinx.coroutines/a import kotlinx.coroutines.tasks.await' android/app/src/main/java/com/oa/app/util/LocationHelper.kt
+          fi
+        fi
+        
+        # 3. 修复主题问题 - 确保使用兼容的主题
+        if [ -f "android/app/src/main/res/values/themes.xml" ]; then
+          echo "修复主题文件..."
+          # 将Material3主题改为AppCompat主题
+          sed -i 's/Theme\.Material3\.DayNight\.DarkActionBar/Theme.AppCompat.Light.DarkActionBar/g' android/app/src/main/res/values/themes.xml
+        fi
+        
+        echo "=== 修复完成 ==="
+    
+    - name: Setup Gradle Wrapper
+      run: |
+        cd android
+        if [ ! -f "gradlew" ]; then
+          echo "创建gradle wrapper..."
+          wget -q https://services.gradle.org/distributions/gradle-8.2-bin.zip
+          unzip -q gradle-8.2-bin.zip
+          ./gradle-8.2/bin/gradle wrapper --gradle-version 8.2
+        fi
+        chmod +x gradlew
+    
+    - name: Build APK
+      run: |
+        cd android
+        echo "开始构建APK..."
+        ./gradlew clean
+        ./gradlew assembleDebug --stacktrace --info
+    
+    - name: Upload APK
+      uses: actions/upload-artifact@v4
+      if: success()
+      with:
+        name: oa-app-apk
+        path: android/app/build/outputs/apk/debug/*.apk
+        retention-days: 7
