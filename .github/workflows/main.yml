@@ -1,4 +1,4 @@
-name: 生成APK
+name: Build Android APK
 
 on:
   push:
@@ -11,64 +11,72 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
+    - name: Checkout Code
       uses: actions/checkout@v4
 
-    - name: Setup Environment & Fix Code
+    - name: Setup Environment and Fix Source
       run: |
-        # 安装基础依赖
-        sudo apt update
-        sudo apt install -y openjdk-17-jdk wget unzip
+        set -e
         
-        # 设置 Android SDK
-        mkdir -p ~/android-sdk
-        cd ~/android-sdk
+        # 1. 安装基础依赖
+        echo "🔧 Installing dependencies..."
+        sudo apt-get update
+        sudo apt-get install -y openjdk-17-jdk wget unzip
+        
+        # 2. 设置 Android SDK
+        echo "📦 Setting up Android SDK..."
+        export ANDROID_HOME=$HOME/android-sdk
+        mkdir -p $ANDROID_HOME
+        cd $ANDROID_HOME
         wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
         unzip -q commandlinetools-linux-9477386_latest.zip
         mv cmdline-tools cmdline-tools-temp
         mkdir -p cmdline-tools
         mv cmdline-tools-temp cmdline-tools/latest
-        export ANDROID_HOME=~/android-sdk
-        export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin
-        yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
-        $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-34" "build-tools;34.0.0" "platform-tools"
+        export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools
         
-        # 回到项目根目录
+        yes | sdkmanager --licenses > /dev/null
+        sdkmanager "platforms;android-34" "build-tools;34.0.0" "platform-tools"
+        
+        # 3. 回到项目目录
         cd $GITHUB_WORKSPACE
+        
+        if [ ! -d "android" ]; then
+          echo "❌ Error: android directory not found!"
+          exit 1
+        fi
+        
+        cd android
+        echo "🚀 Fixing source code..."
 
-        if [ -d "android" ]; then
-          cd android
-          
-          echo "--- 开始修复源代码 ---"
-          
-          # 1. 修复主题文件 (防止 Material3 报错)
-          if [ -f "app/src/main/res/values/themes.xml" ]; then
-            sed -i 's/Theme.Material3.DayNight.DarkActionBar/Theme.AppCompat.Light.DarkActionBar/g' app/src/main/res/values/themes.xml
-            sed -i 's/Theme.Material3.DayNight/Theme.AppCompat.Light/g' app/src/main/res/values/themes.xml
-          fi
-          
-          # 2. 修复 AndroidManifest.xml (移除不存在的图标，修正 Theme)
-          if [ -f "app/src/main/AndroidManifest.xml" ]; then
-            sed -i 's/android:icon="@mipmap\/ic_launcher"//g' app/src/main/AndroidManifest.xml
-            sed -i 's/android:roundIcon="@mipmap\/ic_launcher_round"//g' app/src/main/AndroidManifest.xml
-            sed -i 's/@style\/Theme.OAApp/@style\/Theme.AppCompat.Light.DarkActionBar/g' app/src/main/AndroidManifest.xml
-          fi
-          
-          # 3. 创建必要的目录
-          mkdir -p app/src/main/java/com/oa/app/util
-          mkdir -p app/src/main/res/layout
-          
-          # 4. 创建 Config.kt (解决找不到常量的问题)
-          cat > app/src/main/java/com/oa/app/Config.kt << 'EOF'
+        # --- 修复主题 ---
+        if [ -f "app/src/main/res/values/themes.xml" ]; then
+          sed -i 's/Theme.Material3.DayNight.DarkActionBar/Theme.AppCompat.Light.DarkActionBar/g' app/src/main/res/values/themes.xml
+          sed -i 's/Theme.Material3.DayNight/Theme.AppCompat.Light/g' app/src/main/res/values/themes.xml
+        fi
+
+        # --- 修复 Manifest ---
+        if [ -f "app/src/main/AndroidManifest.xml" ]; then
+          sed -i 's/android:icon="@mipmap\/ic_launcher"//g' app/src/main/AndroidManifest.xml
+          sed -i 's/android:roundIcon="@mipmap\/ic_launcher_round"//g' app/src/main/AndroidManifest.xml
+          sed -i 's/@style\/Theme.OAApp/@style\/Theme.AppCompat.Light.DarkActionBar/g' app/src/main/AndroidManifest.xml
+        fi
+
+        # --- 创建目录 ---
+        mkdir -p app/src/main/java/com/oa/app/util
+        mkdir -p app/src/main/res/layout
+
+        # --- 写入 Config.kt ---
+        cat > app/src/main/java/com/oa/app/Config.kt << 'KOTLIN_EOF'
 package com.oa.app
 
 object Config {
     const val PREF_TOKEN = "user_token"
 }
-EOF
+KOTLIN_EOF
 
-          # 5. 重写 AuthManager.kt (修复协程 first() 问题)
-          cat > app/src/main/java/com/oa/app/util/AuthManager.kt << 'EOF'
+        # --- 写入 AuthManager.kt ---
+        cat > app/src/main/java/com/oa/app/util/AuthManager.kt << 'KOTLIN_EOF'
 package com.oa.app.util
 
 import android.content.Context
@@ -81,7 +89,6 @@ import kotlinx.coroutines.flow.firstOrNull
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
 
 class AuthManager(private val context: Context) {
-
     suspend fun saveToken(token: String) {
         context.dataStore.edit { preferences ->
             preferences[stringPreferencesKey(Config.PREF_TOKEN)] = token
@@ -107,10 +114,10 @@ class AuthManager(private val context: Context) {
         return getToken() != null
     }
 }
-EOF
+KOTLIN_EOF
 
-          # 6. 重写 LocationHelper.kt
-          cat > app/src/main/java/com/oa/app/util/LocationHelper.kt << 'EOF'
+        # --- 写入 LocationHelper.kt ---
+        cat > app/src/main/java/com/oa/app/util/LocationHelper.kt << 'KOTLIN_EOF'
 package com.oa.app.util
 
 import android.Manifest
@@ -119,7 +126,6 @@ import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
 
 class LocationHelper(private val context: Context) {
-
     fun hasLocationPermission(): Boolean {
         return ContextCompat.checkSelfPermission(
             context,
@@ -127,26 +133,25 @@ class LocationHelper(private val context: Context) {
         ) == PackageManager.PERMISSION_GRANTED
     }
 }
-EOF
+KOTLIN_EOF
 
-          # 7. 重写 MainActivity.kt (确保不崩溃)
-          cat > app/src/main/java/com/oa/app/MainActivity.kt << 'EOF'
+        # --- 写入 MainActivity.kt ---
+        cat > app/src/main/java/com/oa/app/MainActivity.kt << 'KOTLIN_EOF'
 package com.oa.app
 
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 
 class MainActivity : AppCompatActivity() {
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
     }
 }
-EOF
+KOTLIN_EOF
 
-          # 8. 【关键】创建 activity_main.xml (之前缺失导致闪退的核心原因)
-          cat > app/src/main/res/layout/activity_main.xml << 'EOF'
+        # --- 写入 activity_main.xml (解决闪退关键) ---
+        cat > app/src/main/res/layout/activity_main.xml << 'XML_EOF'
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.constraintlayout.widget.ConstraintLayout 
     xmlns:android="http://schemas.android.com/apk/res/android"
@@ -160,62 +165,51 @@ EOF
         android:id="@+id/textView"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="OA 办公应用启动成功"
+        android:text="OA App Running Successfully!"
         android:textSize="24sp"
         android:textColor="#000000"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintRight_toRightOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
-
 </androidx.constraintlayout.widget.ConstraintLayout>
-EOF
+XML_EOF
 
-          # 9. 自动注入必要的 Gradle 依赖
-          if [ -f "app/build.gradle" ]; then
-            echo "--- 检查并注入依赖 ---"
-            
-            # 注入协程
-            if ! grep -q "kotlinx-coroutines-android" app/build.gradle; then
-              sed -i '/dependencies {/a\    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3"' app/build.gradle
-            fi
-            
-            # 注入 DataStore
-            if ! grep -q "datastore-preferences" app/build.gradle; then
-              sed -i '/dependencies {/a\    implementation "androidx.datastore:datastore-preferences:1.0.0"' app/build.gradle
-            fi
-            
-            # 注入 ConstraintLayout
-            if ! grep -q "constraintlayout" app/build.gradle; then
-              sed -i '/dependencies {/a\    implementation "androidx.constraintlayout:constraintlayout:2.1.4"' app/build.gradle
-            fi
-            
-            # 注入 AppCompat (如果还没有)
-            if ! grep -q "appcompat" app/build.gradle; then
-              sed -i '/dependencies {/a\    implementation "androidx.appcompat:appcompat:1.6.1"' app/build.gradle
-            fi
-          else
-            echo "错误：未找到 app/build.gradle"
-            exit 1
+        # --- 注入 Gradle 依赖 ---
+        if [ -f "app/build.gradle" ]; then
+          echo "📝 Injecting Gradle dependencies..."
+          
+          # 协程
+          if ! grep -q "kotlinx-coroutines-android" app/build.gradle; then
+            sed -i '/dependencies {/a\    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3"' app/build.gradle
           fi
           
-          echo "--- 开始编译 ---"
-          # 执行编译
-          if [ -f "gradlew" ]; then
-            chmod +x gradlew
-            ./gradlew clean
-            ./gradlew assembleDebug --stacktrace
-          else
-            echo "错误：未找到 gradlew"
-            exit 1
+          # DataStore
+          if ! grep -q "datastore-preferences" app/build.gradle; then
+            sed -i '/dependencies {/a\    implementation "androidx.datastore:datastore-preferences:1.0.0"' app/build.gradle
           fi
           
+          # ConstraintLayout
+          if ! grep -q "constraintlayout" app/build.gradle; then
+            sed -i '/dependencies {/a\    implementation "androidx.constraintlayout:constraintlayout:2.1.4"' app/build.gradle
+          fi
+          
+          # AppCompat
+          if ! grep -q "appcompat" app/build.gradle; then
+            sed -i '/dependencies {/a\    implementation "androidx.appcompat:appcompat:1.6.1"' app/build.gradle
+          fi
         else
-          echo "错误：未找到 android 目录"
+          echo "❌ Error: app/build.gradle not found!"
           exit 1
         fi
 
-    - name: Upload APK
+        # --- 编译 ---
+        echo "🔨 Building APK..."
+        chmod +x gradlew
+        ./gradlew clean
+        ./gradlew assembleDebug --stacktrace
+
+    - name: Upload APK Artifact
       if: success()
       uses: actions/upload-artifact@v4
       with:
