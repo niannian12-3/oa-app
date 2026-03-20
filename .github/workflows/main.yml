@@ -40,7 +40,7 @@ jobs:
           # 创建必要的目录
           mkdir -p app/src/main/java/com/oa/app/util
           
-          # 修复AuthManager.kt - 最简单的版本
+          # 修复AuthManager.kt - 完全正确的版本
           echo 'package com.oa.app.util' > app/src/main/java/com/oa/app/util/AuthManager.kt
           echo '' >> app/src/main/java/com/oa/app/util/AuthManager.kt
           echo 'import android.content.Context' >> app/src/main/java/com/oa/app/util/AuthManager.kt
@@ -50,10 +50,23 @@ jobs:
           echo 'import com.oa.app.Config' >> app/src/main/java/com/oa/app/util/AuthManager.kt
           echo 'import kotlinx.coroutines.flow.Flow' >> app/src/main/java/com/oa/app/util/AuthManager.kt
           echo 'import kotlinx.coroutines.flow.map' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+          echo 'import kotlinx.coroutines.flow.first' >> app/src/main/java/com/oa/app/util/AuthManager.kt
           echo '' >> app/src/main/java/com/oa/app/util/AuthManager.kt
           echo 'val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")' >> app/src/main/java/com/oa/app/util/AuthManager.kt
           echo '' >> app/src/main/java/com/oa/app/util/AuthManager.kt
           echo 'class AuthManager(private val context: Context) {' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+          echo '' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+          echo '    suspend fun saveToken(token: String) {' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+          echo '        context.dataStore.edit { preferences ->' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+          echo '            preferences[stringPreferencesKey(Config.PREF_TOKEN)] = token' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+          echo '        }' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+          echo '    }' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+          echo '' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+          echo '    suspend fun clearAuth() {' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+          echo '        context.dataStore.edit { preferences ->' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+          echo '            preferences.clear()' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+          echo '        }' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+          echo '    }' >> app/src/main/java/com/oa/app/util/AuthManager.kt
           echo '' >> app/src/main/java/com/oa/app/util/AuthManager.kt
           echo '    suspend fun getToken(): String? {' >> app/src/main/java/com/oa/app/util/AuthManager.kt
           echo '        return try {' >> app/src/main/java/com/oa/app/util/AuthManager.kt
@@ -87,6 +100,11 @@ jobs:
           echo '        ) == PackageManager.PERMISSION_GRANTED' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
           echo '    }' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
           echo '}' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+          
+          # 修复MainActivity.kt - 移除clearAuth调用
+          if [ -f "app/src/main/java/com/oa/app/MainActivity.kt" ]; then
+            sed -i '/authManager\.clearAuth()/d' app/src/main/java/com/oa/app/MainActivity.kt
+          fi
           
           if [ -f "gradlew" ]; then
             chmod +x gradlew
