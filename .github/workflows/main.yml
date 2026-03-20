@@ -92,8 +92,8 @@ jobs:
 
         printf '%s\n' '<?xml version="1.0" encoding="utf-8"?>' '<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto" xmlns:tools="http://schemas.android.com/tools" android:layout_width="match_parent" android:layout_height="match_parent" tools:context=".MainActivity">' '<TextView android:id="@+id/textView" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="OA App Running Successfully!" android:textSize="24sp" android:textColor="#000000" app:layout_constraintBottom_toBottomOf="parent" app:layout_constraintLeft_toLeftOf="parent" app:layout_constraintRight_toRightOf="parent" app:layout_constraintTop_toTopOf="parent" />' '</androidx.constraintlayout.widget.ConstraintLayout>' > app/src/main/res/layout/activity_main.xml
 
-        # --- 4. 【核心修复】生成 build.gradle 并解决 .so 库冲突 ---
-        echo "🔨 Overwriting app/build.gradle with conflict resolution..."
+        # --- 4. 【核心修复】生成 build.gradle，显式添加 repositories 块 ---
+        echo "🔨 Overwriting app/build.gradle with explicit repositories..."
         printf '%s\n' \
         "plugins {" \
         "    id 'com.android.application'" \
@@ -133,22 +133,28 @@ jobs:
         "    }" \
         "}" \
         "" \
+        "repositories {" \
+        "    google()" \
+        "    mavenCentral()" \
+        "}" \
+        "" \
         "dependencies {" \
         "    implementation 'androidx.core:core-ktx:1.12.0'" \
         "    implementation 'androidx.appcompat:appcompat:1.6.1'" \
         "    implementation 'com.google.android.material:material:1.11.0'" \
         "    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'" \
         "    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'" \
-        "    implementation 'androidx.datastore:datastore-preferences:1.0.0'" \
+        "    implementation 'androidx.datastore:datastore-preferences:1.1.1'" \
         "    testImplementation 'junit:junit:4.13.2'" \
         "    androidTestImplementation 'androidx.test.ext:junit:1.1.5'" \
         "    androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'" \
         "}" > app/build.gradle
         
         echo "✅ app/build.gradle replaced successfully."
+        cat app/build.gradle
 
         # --- 5. 编译 ---
-        echo "🔨 Starting Build (with native lib conflict fix)..."
+        echo "🔨 Starting Build..."
         ./gradlew clean --no-daemon
         ./gradlew assembleDebug --no-daemon --stacktrace
 
