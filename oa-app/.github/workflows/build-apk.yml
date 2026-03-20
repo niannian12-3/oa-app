@@ -2,11 +2,9 @@ name: Build APK
 
 on:
   push:
-    branches:
-      - master
+    branches: [ "master" ]
   pull_request:
-    branches:
-      - master
+    branches: [ "master" ]
 
 jobs:
   build:
@@ -24,14 +22,13 @@ jobs:
       - name: Install Dependencies
         run: npm install
 
-      - name: Build Android APK
+      - name: Build Android Release
         run: |
           cd android
+          chmod +x gradlew
           ./gradlew assembleRelease
-          # 如果上面命令报错，尝试使用 openclaw 特定的构建命令，通常是:
-          # npx openclaw build --platform android --release
 
-      - name: Upload APK Artifact
+      - name: Upload APK
         uses: actions/upload-artifact@v3
         with:
           name: app-release
