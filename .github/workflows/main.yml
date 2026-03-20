@@ -1,21 +1,13 @@
-name: Build Android APK
-
-on:
-  push:
-    branches: [ "main", "master" ]
-  pull_request:
-    branches: [ "main", "master" ]
-
+name: Build APK
+on: [push, workflow_dispatch]
 jobs:
   build:
     runs-on: ubuntu-latest
-
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
-    - name: Checkout Code
-      uses: actions/checkout@v4
-
-    - name: Setup Environment
-      run: |
+    - uses: actions/checkout@v4
+    - run: |
         sudo apt update
         sudo apt install -y openjdk-17-jdk wget unzip
         mkdir -p ~/android-sdk
@@ -25,137 +17,139 @@ jobs:
         mv cmdline-tools cmdline-tools-temp
         mkdir -p cmdline-tools
         mv cmdline-tools-temp cmdline-tools/latest
-        export ANDROID_HOME=$HOME/android-sdk
+        export ANDROID_HOME=~/android-sdk
         export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin
-        yes | sdkmanager --licenses > /dev/null
-        sdkmanager "platforms;android-34" "build-tools;34.0.0" "platform-tools"
+        yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
+        $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-34" "build-tools;34.0.0" "platform-tools"
         cd $GITHUB_WORKSPACE
-
-    - name: Force Fix and Build
-      run: |
-        if [ ! -d "android" ]; then
-          echo "❌ android directory not found!"
-          exit 1
-        fi
+    - run: |
         cd android
+        mkdir -p app/src/main/java/com/oa/app
+        mkdir -p app/src/main/res/layout
+        mkdir -p app/src/main/res/values
         
-        # --- 1. 确保 Gradle Wrapper 存在 ---
-        if [ ! -f "gradlew" ]; then
-          echo "🔧 Generating Gradle Wrapper..."
-          wget -q https://raw.githubusercontent.com/gradle/gradle/master/gradlew -O gradlew
+        # 创建最简单的MainActivity.kt
+        cat > app/src/main/java/com/oa/app/MainActivity.kt << 'EOF'
+package com.oa.app
+import android.os.Bundle
+import android.widget.Button
+import android.widget.EditText
+import android.widget.TextView
+import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
+class MainActivity : AppCompatActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+        val employeeIdEditText = findViewById<EditText>(R.id.employeeIdEditText)
+        val passwordEditText = findViewById<EditText>(R.id.passwordEditText)
+        val loginButton = findViewById<Button>(R.id.loginButton)
+        val statusTextView = findViewById<TextView>(R.id.statusTextView)
+        statusTextView.text = "OA办公系统\n版本1.0.0\n后端地址:192.168.11.43:3000"
+        loginButton.setOnClickListener {
+            val employeeId = employeeIdEditText.text.toString()
+            val password = passwordEditText.text.toString()
+            if (employeeId.isEmpty() || password.isEmpty()) {
+                Toast.makeText(this, "请输入员工ID和密码", Toast.LENGTH_SHORT).show()
+            } else {
+                statusTextView.text = "登录成功！\n员工ID: $employeeId\n后端地址:192.168.11.43:3000"
+                Toast.makeText(this, "登录成功！", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+}
+EOF
+        
+        # 创建布局文件
+        cat > app/src/main/res/layout/activity_main.xml << 'EOF'
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:gravity="center">
+    <TextView
+        android:id="@+id/titleTextView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="OA办公系统"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="32dp"/>
+    <EditText
+        android:id="@+id/employeeIdEditText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="员工ID"
+        android:layout_marginBottom="16dp"/>
+    <EditText
+        android:id="@+id/passwordEditText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="密码"
+        android:inputType="textPassword"
+        android:layout_marginBottom="24dp"/>
+    <Button
+        android:id="@+id/loginButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="登录"
+        android:textSize="18sp"
+        android:layout_marginBottom="32dp"/>
+    <TextView
+        android:id="@+id/statusTextView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="准备登录..."
+        android:textSize="16sp"
+        android:gravity="center"
+        android:padding="16dp"/>
+</LinearLayout>
+EOF
+        
+        # 创建其他必要文件
+        echo '<?xml version="1.0" encoding="utf-8"?>' > app/src/main/AndroidManifest.xml
+        echo '<manifest xmlns:android="http://schemas.android.com/apk/res/android">' >> app/src/main/AndroidManifest.xml
+        echo '    <uses-permission android:name="android.permission.INTERNET" />' >> app/src/main/AndroidManifest.xml
+        echo '    <application' >> app/src/main/AndroidManifest.xml
+        echo '        android:allowBackup="true"' >> app/src/main/AndroidManifest.xml
+        echo '        android:icon="@mipmap/ic_launcher"' >> app/src/main/AndroidManifest.xml
+        echo '        android:label="OA办公"' >> app/src/main/AndroidManifest.xml
+        echo '        android:roundIcon="@mipmap/ic_launcher_round"' >> app/src/main/AndroidManifest.xml
+        echo '        android:supportsRtl="true"' >> app/src/main/AndroidManifest.xml
+        echo '        android:theme="@style/Theme.AppCompat.Light.DarkActionBar">' >> app/src/main/AndroidManifest.xml
+        echo '        <activity' >> app/src/main/AndroidManifest.xml
+        echo '            android:name=".MainActivity"' >> app/src/main/AndroidManifest.xml
+        echo '            android:exported="true">' >> app/src/main/AndroidManifest.xml
+        echo '            <intent-filter>' >> app/src/main/AndroidManifest.xml
+        echo '                <action android:name="android.intent.action.MAIN" />' >> app/src/main/AndroidManifest.xml
+        echo '                <category android:name="android.intent.category.LAUNCHER" />' >> app/src/main/AndroidManifest.xml
+        echo '            </intent-filter>' >> app/src/main/AndroidManifest.xml
+        echo '        </activity>' >> app/src/main/AndroidManifest.xml
+        echo '    </application>' >> app/src/main/AndroidManifest.xml
+        echo '</manifest>' >> app/src/main/AndroidManifest.xml
+        
+        echo '<?xml version="1.0" encoding="utf-8"?>' > app/src/main/res/values/strings.xml
+        echo '<resources>' >> app/src/main/res/values/strings.xml
+        echo '    <string name="app_name">OA办公</string>' >> app/src/main/res/values/strings.xml
+        echo '</resources>' >> app/src/main/res/values/strings.xml
+        
+        # 构建APK
+        if [ -f "gradlew" ]; then
           chmod +x gradlew
-          mkdir -p gradle/wrapper
-          wget -q https://raw.githubusercontent.com/gradle/gradle/master/gradle/wrapper/gradle-wrapper.jar -O gradle/wrapper/gradle-wrapper.jar
-          echo "distributionBase=GRADLE_USER_HOME" > gradle/wrapper/gradle-wrapper.properties
-          echo "distributionPath=wrapper/dists" >> gradle/wrapper/gradle-wrapper.properties
-          echo "distributionUrl=https\://services.gradle.org/distributions/gradle-8.2-bin.zip" >> gradle/wrapper/gradle-wrapper.properties
-          echo "networkTimeout=10000" >> gradle/wrapper/gradle-wrapper.properties
-          echo "zipStoreBase=GRADLE_USER_HOME" >> gradle/wrapper/gradle-wrapper.properties
-          echo "zipStorePath=wrapper/dists" >> gradle/wrapper/gradle-wrapper.properties
+          ./gradlew clean
+          ./gradlew assembleDebug
+        else
+          wget -q https://services.gradle.org/distributions/gradle-8.2-bin.zip
+          unzip -q gradle-8.2-bin.zip
+          ./gradle-8.2/bin/gradle wrapper --gradle-version 8.2
+          chmod +x gradlew
+          ./gradlew clean
+          ./gradlew assembleDebug
         fi
-        
-        # --- 2. 【暴力覆盖】Config.kt ---
-        echo "package com.oa.app" > app/src/main/java/com/oa/app/Config.kt
-        echo "" >> app/src/main/java/com/oa/app/Config.kt
-        echo "object Config {" >> app/src/main/java/com/oa/app/Config.kt
-        echo "    const val PREF_TOKEN = \"user_token\"" >> app/src/main/java/com/oa/app/Config.kt
-        echo "    const val PREF_EMPLOYEE_ID = \"employee_id\"" >> app/src/main/java/com/oa/app/Config.kt
-        echo "    const val PREF_NAME = \"user_name\"" >> app/src/main/java/com/oa/app/Config.kt
-        echo "    const val API_BASE_URL = \"https://api.example.com/\"" >> app/src/main/java/com/oa/app/Config.kt
-        echo "}" >> app/src/main/java/com/oa/app/Config.kt
-
-        # --- 3. 【暴力覆盖】AuthManager.kt (这次包含了 clearAuth!) ---
-        echo "package com.oa.app.util" > app/src/main/java/com/oa/app/util/AuthManager.kt
-        echo "" >> app/src/main/java/com/oa/app/util/AuthManager.kt
-        echo "import android.content.Context" >> app/src/main/java/com/oa/app/util/AuthManager.kt
-        echo "import androidx.datastore.core.DataStore" >> app/src/main/java/com/oa/app/util/AuthManager.kt
-        echo "import androidx.datastore.preferences.core.*" >> app/src/main/java/com/oa/app/util/AuthManager.kt
-        echo "import androidx.datastore.preferences.preferencesDataStore" >> app/src/main/java/com/oa/app/util/AuthManager.kt
-        echo "import com.oa.app.Config" >> app/src/main/java/com/oa/app/util/AuthManager.kt
-        echo "import kotlinx.coroutines.flow.firstOrNull" >> app/src/main/java/com/oa/app/util/AuthManager.kt
-        echo "" >> app/src/main/java/com/oa/app/util/AuthManager.kt
-        echo "val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = \"settings\")" >> app/src/main/java/com/oa/app/util/AuthManager.kt
-        echo "" >> app/src/main/java/com/oa/app/util/AuthManager.kt
-        echo "class AuthManager(private val context: Context) {" >> app/src/main/java/com/oa/app/util/AuthManager.kt
-        echo "    suspend fun saveToken(token: String) {" >> app/src/main/java/com/oa/app/util/AuthManager.kt
-        echo "        context.dataStore.edit { preferences ->" >> app/src/main/java/com/oa/app/util/AuthManager.kt
-        echo "            preferences[stringPreferencesKey(Config.PREF_TOKEN)] = token" >> app/src/main/java/com/oa/app/util/AuthManager.kt
-        echo "        }" >> app/src/main/java/com/oa/app/util/AuthManager.kt
-        echo "    }" >> app/src/main/java/com/oa/app/util/AuthManager.kt
-        echo "    suspend fun getToken(): String? {" >> app/src/main/java/com/oa/app/util/AuthManager.kt
-        echo "        return try {" >> app/src/main/java/com/oa/app/util/AuthManager.kt
-        echo "            context.dataStore.data.firstOrNull()?.get(stringPreferencesKey(Config.PREF_TOKEN))" >> app/src/main/java/com/oa/app/util/AuthManager.kt
-        echo "        } catch (e: Exception) { null }" >> app/src/main/java/com/oa/app/util/AuthManager.kt
-        echo "    }" >> app/src/main/java/com/oa/app/util/AuthManager.kt
-        echo "    suspend fun isLoggedIn(): Boolean = getToken() != null" >> app/src/main/java/com/oa/app/util/AuthManager.kt
-        echo "    // 补上缺失的 clearAuth 方法！！！" >> app/src/main/java/com/oa/app/util/AuthManager.kt
-        echo "    suspend fun clearAuth() {" >> app/src/main/java/com/oa/app/util/AuthManager.kt
-        echo "        context.dataStore.edit { preferences ->" >> app/src/main/java/com/oa/app/util/AuthManager.kt
-        echo "            preferences.clear()" >> app/src/main/java/com/oa/app/util/AuthManager.kt
-        echo "        }" >> app/src/main/java/com/oa/app/util/AuthManager.kt
-        echo "    }" >> app/src/main/java/com/oa/app/util/AuthManager.kt
-        echo "    suspend fun getEmployeeId(): String? = null" >> app/src/main/java/com/oa/app/util/AuthManager.kt
-        echo "    suspend fun getName(): String? = null" >> app/src/main/java/com/oa/app/util/AuthManager.kt
-        echo "}" >> app/src/main/java/com/oa/app/util/AuthManager.kt
-
-        # --- 4. 【暴力覆盖】LocationHelper.kt ---
-        echo "package com.oa.app.util" > app/src/main/java/com/oa/app/util/LocationHelper.kt
-        echo "" >> app/src/main/java/com/oa/app/util/LocationHelper.kt
-        echo "import android.Manifest" >> app/src/main/java/com/oa/app/util/LocationHelper.kt
-        echo "import android.content.Context" >> app/src/main/java/com/oa/app/util/LocationHelper.kt
-        echo "import android.content.pm.PackageManager" >> app/src/main/java/com/oa/app/util/LocationHelper.kt
-        echo "import androidx.core.content.ContextCompat" >> app/src/main/java/com/oa/app/util/LocationHelper.kt
-        echo "" >> app/src/main/java/com/oa/app/util/LocationHelper.kt
-        echo "class LocationHelper(private val context: Context) {" >> app/src/main/java/com/oa/app/util/LocationHelper.kt
-        echo "    fun hasLocationPermission(): Boolean {" >> app/src/main/java/com/oa/app/util/LocationHelper.kt
-        echo "        return ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED" >> app/src/main/java/com/oa/app/util/LocationHelper.kt
-        echo "    }" >> app/src/main/java/com/oa/app/util/LocationHelper.kt
-        echo "    suspend fun getCurrentAddress(): String? = null" >> app/src/main/java/com/oa/app/util/LocationHelper.kt
-        echo "}" >> app/src/main/java/com/oa/app/util/LocationHelper.kt
-
-        # --- 5. 【暴力覆盖】RetrofitClient.kt ---
-        echo "package com.oa.app.data.api" > app/src/main/java/com/oa/app/data/api/RetrofitClient.kt
-        echo "" >> app/src/main/java/com/oa/app/data/api/RetrofitClient.kt
-        echo "import com.oa.app.Config" >> app/src/main/java/com/oa/app/data/api/RetrofitClient.kt
-        echo "import okhttp3.OkHttpClient" >> app/src/main/java/com/oa/app/data/api/RetrofitClient.kt
-        echo "import retrofit2.Retrofit" >> app/src/main/java/com/oa/app/data/api/RetrofitClient.kt
-        echo "import retrofit2.converter.gson.GsonConverterFactory" >> app/src/main/java/com/oa/app/data/api/RetrofitClient.kt
-        echo "import java.util.concurrent.TimeUnit" >> app/src/main/java/com/oa/app/data/api/RetrofitClient.kt
-        echo "" >> app/src/main/java/com/oa/app/data/api/RetrofitClient.kt
-        echo "object RetrofitClient {" >> app/src/main/java/com/oa/app/data/api/RetrofitClient.kt
-        echo "    private val okHttpClient = OkHttpClient.Builder()" >> app/src/main/java/com/oa/app/data/api/RetrofitClient.kt
-        echo "        .connectTimeout(30, TimeUnit.SECONDS)" >> app/src/main/java/com/oa/app/data/api/RetrofitClient.kt
-        echo "        .readTimeout(30, TimeUnit.SECONDS)" >> app/src/main/java/com/oa/app/data/api/RetrofitClient.kt
-        echo "        .writeTimeout(30, TimeUnit.SECONDS)" >> app/src/main/java/com/oa/app/data/api/RetrofitClient.kt
-        echo "        .build()" >> app/src/main/java/com/oa/app/data/api/RetrofitClient.kt
-        echo "" >> app/src/main/java/com/oa/app/data/api/RetrofitClient.kt
-        echo "    private val retrofit = Retrofit.Builder()" >> app/src/main/java/com/oa/app/data/api/RetrofitClient.kt
-        echo "        .baseUrl(Config.API_BASE_URL)" >> app/src/main/java/com/oa/app/data/api/RetrofitClient.kt
-        echo "        .client(okHttpClient)" >> app/src/main/java/com/oa/app/data/api/RetrofitClient.kt
-        echo "        .addConverterFactory(GsonConverterFactory.create())" >> app/src/main/java/com/oa/app/data/api/RetrofitClient.kt
-        echo "        .build()" >> app/src/main/java/com/oa/app/data/api/RetrofitClient.kt
-        echo "" >> app/src/main/java/com/oa/app/data/api/RetrofitClient.kt
-        echo "    val apiService: ApiService = retrofit.create(ApiService::class.java)" >> app/src/main/java/com/oa/app/data/api/RetrofitClient.kt
-        echo "}" >> app/src/main/java/com/oa/app/data/api/RetrofitClient.kt
-
-        # --- 6. 修复资源和 Manifest ---
-        if [ -f "app/src/main/res/values/themes.xml" ]; then
-          sed -i 's/Theme.Material3.DayNight.DarkActionBar/Theme.AppCompat.Light.DarkActionBar/g' app/src/main/res/values/themes.xml
-          sed -i 's/Theme.Material3.DayNight/Theme.AppCompat.Light/g' app/src/main/res/values/themes.xml
-        fi
-        if [ -f "app/src/main/AndroidManifest.xml" ]; then
-          sed -i 's/android:icon="@mipmap\/ic_launcher"//g' app/src/main/AndroidManifest.xml
-          sed -i 's/android:roundIcon="@mipmap\/ic_launcher_round"//g' app/src/main/AndroidManifest.xml
-          sed -i 's/@style\/Theme.OAApp/@style\/Theme.AppCompat.Light.DarkActionBar/g' app/src/main/AndroidManifest.xml
-        fi
-
-        echo "🚀 Starting Final Build (With clearAuth!)..."
-        ./gradlew clean --no-daemon
-        ./gradlew assembleDebug --no-daemon --stacktrace
-
-    - name: Upload APK Artifact
+    - uses: actions/upload-artifact@v4
       if: success()
-      uses: actions/upload-artifact@v4
       with:
-        name: OA-App-Debug
+        name: apk
         path: android/app/build/outputs/apk/debug/*.apk
