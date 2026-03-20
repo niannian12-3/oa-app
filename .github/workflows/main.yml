@@ -46,7 +46,7 @@ jobs:
         cd $PROJECT_DIR
         echo "🚀 Working in directory: $PROJECT_DIR"
         
-        # --- 关键修复：如果没有 gradlew，直接下载标准脚本 ---
+        # --- 生成/修复 Gradle Wrapper ---
         if [ ! -f "gradlew" ]; then
           echo "⚠️ gradlew not found! Downloading standard script..."
           wget -q https://raw.githubusercontent.com/gradle/gradle/master/gradlew -O gradlew
@@ -57,23 +57,26 @@ jobs:
           echo "✅ Found existing gradlew."
         fi
 
-        # 确保 wrapper jar 存在
         if [ ! -f "gradle/wrapper/gradle-wrapper.jar" ]; then
           echo "📥 Downloading gradle-wrapper.jar..."
           mkdir -p gradle/wrapper
           wget -q https://raw.githubusercontent.com/gradle/gradle/master/gradle/wrapper/gradle-wrapper.jar -O gradle/wrapper/gradle-wrapper.jar
         fi
 
-        # 确保 properties 存在
+        # 【关键修复】将 Gradle 版本升级为 8.2 以匹配 Android 插件要求
         if [ ! -f "gradle/wrapper/gradle-wrapper.properties" ]; then
-          echo "📝 Creating gradle-wrapper.properties..."
+          echo "📝 Creating gradle-wrapper.properties (Version 8.2)..."
           mkdir -p gradle/wrapper
           echo "distributionBase=GRADLE_USER_HOME" > gradle/wrapper/gradle-wrapper.properties
           echo "distributionPath=wrapper/dists" >> gradle/wrapper/gradle-wrapper.properties
-          echo "distributionUrl=https\://services.gradle.org/distributions/gradle-8.0-bin.zip" >> gradle/wrapper/gradle-wrapper.properties
+          echo "distributionUrl=https\://services.gradle.org/distributions/gradle-8.2-bin.zip" >> gradle/wrapper/gradle-wrapper.properties
           echo "networkTimeout=10000" >> gradle/wrapper/gradle-wrapper.properties
           echo "zipStoreBase=GRADLE_USER_HOME" >> gradle/wrapper/gradle-wrapper.properties
           echo "zipStorePath=wrapper/dists" >> gradle/wrapper/gradle-wrapper.properties
+        else
+          # 如果文件已存在但版本不对，强制修正为 8.2
+          sed -i 's/gradle-.*-bin.zip/gradle-8.2-bin.zip/g' gradle/wrapper/gradle-wrapper.properties
+          echo "✅ Ensured gradle-wrapper.properties uses version 8.2"
         fi
 
         echo "🔨 Fixing source code..."
@@ -95,7 +98,7 @@ jobs:
         mkdir -p app/src/main/java/com/oa/app/util
         mkdir -p app/src/main/res/layout
 
-        # 4. 写入 Config.kt (使用 printf 确保安全)
+        # 4. 写入 Config.kt
         printf '%s\n' 'package com.oa.app' '' 'object Config {' '    const val PREF_TOKEN = "user_token"' '}' > app/src/main/java/com/oa/app/Config.kt
 
         # 5. 写入 AuthManager.kt
