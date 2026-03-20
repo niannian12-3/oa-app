@@ -14,16 +14,13 @@ jobs:
     - name: Checkout Code
       uses: actions/checkout@v4
 
-    - name: Setup Environment and Fix Source
+    - name: Setup and Build
       run: |
         set -e
-        
-        # 1. 安装基础依赖
         echo "🔧 Installing dependencies..."
         sudo apt-get update
         sudo apt-get install -y openjdk-17-jdk wget unzip
         
-        # 2. 设置 Android SDK
         echo "📦 Setting up Android SDK..."
         export ANDROID_HOME=$HOME/android-sdk
         mkdir -p $ANDROID_HOME
@@ -38,7 +35,6 @@ jobs:
         yes | sdkmanager --licenses > /dev/null
         sdkmanager "platforms;android-34" "build-tools;34.0.0" "platform-tools"
         
-        # 3. 回到项目目录
         cd $GITHUB_WORKSPACE
         
         if [ ! -d "android" ]; then
@@ -49,152 +45,51 @@ jobs:
         cd android
         echo "🚀 Fixing source code..."
 
-        # --- 修复主题 ---
+        # 1. 修复主题
         if [ -f "app/src/main/res/values/themes.xml" ]; then
           sed -i 's/Theme.Material3.DayNight.DarkActionBar/Theme.AppCompat.Light.DarkActionBar/g' app/src/main/res/values/themes.xml
           sed -i 's/Theme.Material3.DayNight/Theme.AppCompat.Light/g' app/src/main/res/values/themes.xml
         fi
 
-        # --- 修复 Manifest ---
+        # 2. 修复 Manifest
         if [ -f "app/src/main/AndroidManifest.xml" ]; then
           sed -i 's/android:icon="@mipmap\/ic_launcher"//g' app/src/main/AndroidManifest.xml
           sed -i 's/android:roundIcon="@mipmap\/ic_launcher_round"//g' app/src/main/AndroidManifest.xml
           sed -i 's/@style\/Theme.OAApp/@style\/Theme.AppCompat.Light.DarkActionBar/g' app/src/main/AndroidManifest.xml
         fi
 
-        # --- 创建目录 ---
+        # 3. 创建目录
         mkdir -p app/src/main/java/com/oa/app/util
         mkdir -p app/src/main/res/layout
 
-        # --- 写入 Config.kt ---
-        cat > app/src/main/java/com/oa/app/Config.kt << 'KOTLIN_EOF'
-package com.oa.app
+        # 4. 写入 Config.kt (使用 printf 避免 heredoc 缩进问题)
+        printf '%s\n' 'package com.oa.app' '' 'object Config {' '    const val PREF_TOKEN = "user_token"' '}' > app/src/main/java/com/oa/app/Config.kt
 
-object Config {
-    const val PREF_TOKEN = "user_token"
-}
-KOTLIN_EOF
+        # 5. 写入 AuthManager.kt
+        printf '%s\n' 'package com.oa.app.util' '' 'import android.content.Context' 'import androidx.datastore.core.DataStore' 'import androidx.datastore.preferences.core.*' 'import androidx.datastore.preferences.preferencesDataStore' 'import com.oa.app.Config' 'import kotlinx.coroutines.flow.firstOrNull' '' 'val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")' '' 'class AuthManager(private val context: Context) {' '    suspend fun saveToken(token: String) {' '        context.dataStore.edit { preferences ->' '            preferences[stringPreferencesKey(Config.PREF_TOKEN)] = token' '        }' '    }' '' '    suspend fun clearAuth() {' '        context.dataStore.edit { preferences ->' '            preferences.clear()' '        }' '    }' '' '    suspend fun getToken(): String? {' '        return try {' '            val preferences = context.dataStore.data.firstOrNull()' '            preferences?.get(stringPreferencesKey(Config.PREF_TOKEN))' '        } catch (e: Exception) {' '            null' '        }' '    }' '' '    suspend fun isLoggedIn(): Boolean {' '        return getToken() != null' '    }' '}' > app/src/main/java/com/oa/app/util/AuthManager.kt
 
-        # --- 写入 AuthManager.kt ---
-        cat > app/src/main/java/com/oa/app/util/AuthManager.kt << 'KOTLIN_EOF'
-package com.oa.app.util
+        # 6. 写入 LocationHelper.kt
+        printf '%s\n' 'package com.oa.app.util' '' 'import android.Manifest' 'import android.content.Context' 'import android.content.pm.PackageManager' 'import androidx.core.content.ContextCompat' '' 'class LocationHelper(private val context: Context) {' '    fun hasLocationPermission(): Boolean {' '        return ContextCompat.checkSelfPermission(' '            context,' '            Manifest.permission.ACCESS_FINE_LOCATION' '        ) == PackageManager.PERMISSION_GRANTED' '    }' '}' > app/src/main/java/com/oa/app/util/LocationHelper.kt
 
-import android.content.Context
-import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.core.*
-import androidx.datastore.preferences.preferencesDataStore
-import com.oa.app.Config
-import kotlinx.coroutines.flow.firstOrNull
+        # 7. 写入 MainActivity.kt
+        printf '%s\n' 'package com.oa.app' '' 'import android.os.Bundle' 'import androidx.appcompat.app.AppCompatActivity' '' 'class MainActivity : AppCompatActivity() {' '    override fun onCreate(savedInstanceState: Bundle?) {' '        super.onCreate(savedInstanceState)' '        setContentView(R.layout.activity_main)' '    }' '}' > app/src/main/java/com/oa/app/MainActivity.kt
 
-val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
+        # 8. 写入 activity_main.xml (解决闪退的关键)
+        printf '%s\n' '<?xml version="1.0" encoding="utf-8"?>' '<androidx.constraintlayout.widget.ConstraintLayout' '    xmlns:android="http://schemas.android.com/apk/res/android"' '    xmlns:app="http://schemas.android.com/apk/res-auto"' '    xmlns:tools="http://schemas.android.com/tools"' '    android:layout_width="match_parent"' '    android:layout_height="match_parent"' '    tools:context=".MainActivity">' '' '    <TextView' '        android:id="@+id/textView"' '        android:layout_width="wrap_content"' '        android:layout_height="wrap_content"' '        android:text="OA App Running Successfully!"' '        android:textSize="24sp"' '        android:textColor="#000000"' '        app:layout_constraintBottom_toBottomOf="parent"' '        app:layout_constraintLeft_toLeftOf="parent"' '        app:layout_constraintRight_toRightOf="parent"' '        app:layout_constraintTop_toTopOf="parent" />' '' '</androidx.constraintlayout.widget.ConstraintLayout>' > app/src/main/res/layout/activity_main.xml
 
-class AuthManager(private val context: Context) {
-    suspend fun saveToken(token: String) {
-        context.dataStore.edit { preferences ->
-            preferences[stringPreferencesKey(Config.PREF_TOKEN)] = token
-        }
-    }
-
-    suspend fun clearAuth() {
-        context.dataStore.edit { preferences ->
-            preferences.clear()
-        }
-    }
-
-    suspend fun getToken(): String? {
-        return try {
-            val preferences = context.dataStore.data.firstOrNull()
-            preferences?.get(stringPreferencesKey(Config.PREF_TOKEN))
-        } catch (e: Exception) {
-            null
-        }
-    }
-
-    suspend fun isLoggedIn(): Boolean {
-        return getToken() != null
-    }
-}
-KOTLIN_EOF
-
-        # --- 写入 LocationHelper.kt ---
-        cat > app/src/main/java/com/oa/app/util/LocationHelper.kt << 'KOTLIN_EOF'
-package com.oa.app.util
-
-import android.Manifest
-import android.content.Context
-import android.content.pm.PackageManager
-import androidx.core.content.ContextCompat
-
-class LocationHelper(private val context: Context) {
-    fun hasLocationPermission(): Boolean {
-        return ContextCompat.checkSelfPermission(
-            context,
-            Manifest.permission.ACCESS_FINE_LOCATION
-        ) == PackageManager.PERMISSION_GRANTED
-    }
-}
-KOTLIN_EOF
-
-        # --- 写入 MainActivity.kt ---
-        cat > app/src/main/java/com/oa/app/MainActivity.kt << 'KOTLIN_EOF'
-package com.oa.app
-
-import android.os.Bundle
-import androidx.appcompat.app.AppCompatActivity
-
-class MainActivity : AppCompatActivity() {
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
-    }
-}
-KOTLIN_EOF
-
-        # --- 写入 activity_main.xml (解决闪退关键) ---
-        cat > app/src/main/res/layout/activity_main.xml << 'XML_EOF'
-<?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout 
-    xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    tools:context=".MainActivity">
-
-    <TextView
-        android:id="@+id/textView"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="OA App Running Successfully!"
-        android:textSize="24sp"
-        android:textColor="#000000"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintLeft_toLeftOf="parent"
-        app:layout_constraintRight_toRightOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
-</androidx.constraintlayout.widget.ConstraintLayout>
-XML_EOF
-
-        # --- 注入 Gradle 依赖 ---
+        # 9. 注入 Gradle 依赖
         if [ -f "app/build.gradle" ]; then
           echo "📝 Injecting Gradle dependencies..."
           
-          # 协程
           if ! grep -q "kotlinx-coroutines-android" app/build.gradle; then
             sed -i '/dependencies {/a\    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3"' app/build.gradle
           fi
-          
-          # DataStore
           if ! grep -q "datastore-preferences" app/build.gradle; then
             sed -i '/dependencies {/a\    implementation "androidx.datastore:datastore-preferences:1.0.0"' app/build.gradle
           fi
-          
-          # ConstraintLayout
           if ! grep -q "constraintlayout" app/build.gradle; then
             sed -i '/dependencies {/a\    implementation "androidx.constraintlayout:constraintlayout:2.1.4"' app/build.gradle
           fi
-          
-          # AppCompat
           if ! grep -q "appcompat" app/build.gradle; then
             sed -i '/dependencies {/a\    implementation "androidx.appcompat:appcompat:1.6.1"' app/build.gradle
           fi
@@ -203,7 +98,7 @@ XML_EOF
           exit 1
         fi
 
-        # --- 编译 ---
+        # 10. 编译
         echo "🔨 Building APK..."
         chmod +x gradlew
         ./gradlew clean
