@@ -22,38 +22,23 @@ jobs:
         yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
         $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-34" "build-tools;34.0.0" "platform-tools"
         cd $GITHUB_WORKSPACE
-    - name: Fix project issues
-      run: |
+    - run: |
         if [ -d "android" ]; then
           cd android
           
-          echo "=== 修复主题问题 ==="
-          # 修复主题问题 - 将Material3改为AppCompat
-          if [ -f "app/src/main/res/values/themes.xml" ]; then
-            echo "修复主题文件..."
-            sed -i 's/Theme\.Material3\.DayNight\.DarkActionBar/Theme.AppCompat.Light.DarkActionBar/g' app/src/main/res/values/themes.xml
-          fi
-          
-          echo "=== 修复图标引用 ==="
-          # 修复AndroidManifest.xml - 移除不存在的图标引用
+          # 修复AndroidManifest.xml - 移除图标引用
           if [ -f "app/src/main/AndroidManifest.xml" ]; then
-            echo "修复AndroidManifest.xml..."
-            # 移除图标引用
             sed -i 's/android:icon="@mipmap\/ic_launcher"//g' app/src/main/AndroidManifest.xml
             sed -i 's/android:roundIcon="@mipmap\/ic_launcher_round"//g' app/src/main/AndroidManifest.xml
           fi
           
-          echo "=== 修复Kotlin文件 ==="
           # 修复AuthManager.kt
           if [ -f "app/src/main/java/com/oa/app/util/AuthManager.kt" ]; then
-            echo "修复AuthManager.kt..."
             sed -i 's/\.firstOrNull()/.first()/g' app/src/main/java/com/oa/app/util/AuthManager.kt
           fi
           
-          # 修复LocationHelper.kt - 创建简单版本
+          # 修复LocationHelper.kt
           if [ -f "app/src/main/java/com/oa/app/util/LocationHelper.kt" ]; then
-            echo "修复LocationHelper.kt..."
-            # 创建最简单的版本
             cat > app/src/main/java/com/oa/app/util/LocationHelper.kt << 'EOF'
 package com.oa.app.util
 
@@ -102,38 +87,6 @@ class LocationHelper(private val context: Context) {
 EOF
           fi
           
-          echo "=== 修复依赖 ==="
-          # 确保有必要的依赖
-          if [ -f "app/build.gradle" ]; then
-            echo "检查依赖..."
-            # 确保有AppCompat
-            if ! grep -q "androidx.appcompat:appcompat" app/build.gradle; then
-              echo "添加AppCompat依赖..."
-              sed -i '/dependencies {/a\    implementation "androidx.appcompat:appcompat:1.6.1"' app/build.gradle
-            fi
-          fi
-          
-          echo "=== 创建默认图标 ==="
-          # 创建默认图标文件
-          mkdir -p app/src/main/res/mipmap-anydpi-v26
-          mkdir -p app/src/main/res/mipmap-hdpi
-          mkdir -p app/src/main/res/mipmap-mdpi
-          mkdir -p app/src/main/res/mipmap-xhdpi
-          mkdir -p app/src/main/res/mipmap-xxhdpi
-          mkdir -p app/src/main/res/mipmap-xxxhdpi
-          
-          # 创建简单的ic_launcher.xml
-          echo '<?xml version="1.0" encoding="utf-8"?>' > app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
-          echo '<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">' >> app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
-          echo '    <background android:drawable="@color/primary"/>' >> app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
-          echo '    <foreground android:drawable="@drawable/ic_launcher_foreground"/>' >> app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
-          echo '</adaptive-icon>' >> app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
-          
-          echo "修复完成"
-        fi
-    - run: |
-        if [ -d "android" ]; then
-          cd android
           if [ -f "gradlew" ]; then
             chmod +x gradlew
             ./gradlew clean
