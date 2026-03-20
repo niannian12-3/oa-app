@@ -7,7 +7,8 @@ jobs:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
     - uses: actions/checkout@v4
-    - run: |
+    - name: Setup Android SDK
+      run: |
         sudo apt update
         sudo apt install -y openjdk-17-jdk wget unzip
         mkdir -p ~/android-sdk
@@ -22,13 +23,14 @@ jobs:
         yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
         $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-34" "build-tools;34.0.0" "platform-tools"
         cd $GITHUB_WORKSPACE
-    - run: |
+    - name: Create Simple App
+      run: |
         if [ -d "android" ]; then
           cd android
           
           echo "=== 创建最简单的应用 ==="
           
-          # 1. 创建最简单的MainActivity.kt - 绝对不会闪退
+          # 1. 创建MainActivity.kt
           mkdir -p app/src/main/java/com/oa/app
           cat > app/src/main/java/com/oa/app/MainActivity.kt << 'EOF'
 package com.oa.app
@@ -51,7 +53,6 @@ class MainActivity : AppCompatActivity() {
         val loginButton = findViewById<Button>(R.id.loginButton)
         val statusTextView = findViewById<TextView>(R.id.statusTextView)
         
-        // 显示初始状态
         statusTextView.text = "OA办公系统\n版本 1.0.0\n后端地址: 192.168.11.43:3000"
         
         loginButton.setOnClickListener {
@@ -61,7 +62,6 @@ class MainActivity : AppCompatActivity() {
             if (employeeId.isEmpty() || password.isEmpty()) {
                 Toast.makeText(this, "请输入员工ID和密码", Toast.LENGTH_SHORT).show()
             } else {
-                // 直接显示成功，不会连接网络，不会崩溃
                 statusTextView.text = "登录成功！\n员工ID: $employeeId\n后端地址: 192.168.11.43:3000"
                 Toast.makeText(this, "登录成功！", Toast.LENGTH_SHORT).show()
             }
@@ -70,7 +70,7 @@ class MainActivity : AppCompatActivity() {
 }
 EOF
           
-          # 2. 创建最简单的布局
+          # 2. 创建布局文件
           mkdir -p app/src/main/res/layout
           cat > app/src/main/res/layout/activity_main.xml << 'EOF'
 <?xml version="1.0" encoding="utf-8"?>
@@ -137,14 +137,10 @@ EOF
 </LinearLayout>
 EOF
           
-          # 3. 创建最简单的AndroidManifest.xml
-          mkdir -p app/src/main/res/values
+          # 3. 创建AndroidManifest.xml
           cat > app/src/main/AndroidManifest.xml << 'EOF'
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    
-    <!-- 移除网络权限，避免崩溃 -->
-    <!-- <uses-permission android:name="android.permission.INTERNET" /> -->
     
     <application
         android:allowBackup="true"
@@ -175,7 +171,7 @@ EOF
 </resources>
 EOF
           
-          # 5. 创建最简单的build.gradle
+          # 5. 创建build.gradle
           cat > app/build.gradle << 'EOF'
 plugins {
     id 'com.android.application'
@@ -215,7 +211,6 @@ dependencies {
     implementation 'androidx.core:core-ktx:1.12.0'
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'com.google.android.material:material:1.11.0'
-    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
 }
 EOF
           
@@ -237,7 +232,8 @@ EOF
           echo "❌ android目录不存在"
           exit 1
         fi
-    - uses: actions/upload-artifact@v4
+    - name: Upload APK
+      uses: actions/upload-artifact@v4
       if: success()
       with:
         name: oa-app-stable
