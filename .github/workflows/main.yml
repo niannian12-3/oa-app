@@ -26,172 +26,180 @@ jobs:
         if [ -d "android" ]; then
           cd android
           
-          # 1. 创建最简单的MainActivity.kt
+          # 创建所有必要的目录
           mkdir -p app/src/main/java/com/oa/app
-          echo 'package com.oa.app' > app/src/main/java/com/oa/app/MainActivity.kt
-          echo '' >> app/src/main/java/com/oa/app/MainActivity.kt
-          echo 'import android.os.Bundle' >> app/src/main/java/com/oa/app/MainActivity.kt
-          echo 'import android.widget.Button' >> app/src/main/java/com/oa/app/MainActivity.kt
-          echo 'import android.widget.EditText' >> app/src/main/java/com/oa/app/MainActivity.kt
-          echo 'import android.widget.TextView' >> app/src/main/java/com/oa/app/MainActivity.kt
-          echo 'import android.widget.Toast' >> app/src/main/java/com/oa/app/MainActivity.kt
-          echo 'import androidx.appcompat.app.AppCompatActivity' >> app/src/main/java/com/oa/app/MainActivity.kt
-          echo '' >> app/src/main/java/com/oa/app/MainActivity.kt
-          echo 'class MainActivity : AppCompatActivity() {' >> app/src/main/java/com/oa/app/MainActivity.kt
-          echo '' >> app/src/main/java/com/oa/app/MainActivity.kt
-          echo '    override fun onCreate(savedInstanceState: Bundle?) {' >> app/src/main/java/com/oa/app/MainActivity.kt
-          echo '        super.onCreate(savedInstanceState)' >> app/src/main/java/com/oa/app/MainActivity.kt
-          echo '        setContentView(R.layout.activity_main)' >> app/src/main/java/com/oa/app/MainActivity.kt
-          echo '' >> app/src/main/java/com/oa/app/MainActivity.kt
-          echo '        val employeeIdEditText = findViewById<EditText>(R.id.employeeIdEditText)' >> app/src/main/java/com/oa/app/MainActivity.kt
-          echo '        val passwordEditText = findViewById<EditText>(R.id.passwordEditText)' >> app/src/main/java/com/oa/app/MainActivity.kt
-          echo '        val loginButton = findViewById<Button>(R.id.loginButton)' >> app/src/main/java/com/oa/app/MainActivity.kt
-          echo '        val statusTextView = findViewById<TextView>(R.id.statusTextView)' >> app/src/main/java/com/oa/app/MainActivity.kt
-          echo '' >> app/src/main/java/com/oa/app/MainActivity.kt
-          echo '        loginButton.setOnClickListener {' >> app/src/main/java/com/oa/app/MainActivity.kt
-          echo '            val employeeId = employeeIdEditText.text.toString()' >> app/src/main/java/com/oa/app/MainActivity.kt
-          echo '            val password = passwordEditText.text.toString()' >> app/src/main/java/com/oa/app/MainActivity.kt
-          echo '' >> app/src/main/java/com/oa/app/MainActivity.kt
-          echo '            if (employeeId.isEmpty() || password.isEmpty()) {' >> app/src/main/java/com/oa/app/MainActivity.kt
-          echo '                Toast.makeText(this, "请输入员工ID和密码", Toast.LENGTH_SHORT).show()' >> app/src/main/java/com/oa/app/MainActivity.kt
-          echo '            } else {' >> app/src/main/java/com/oa/app/MainActivity.kt
-          echo '                statusTextView.text = "登录成功！员工ID: " + employeeId' >> app/src/main/java/com/oa/app/MainActivity.kt
-          echo '                Toast.makeText(this, "登录成功！", Toast.LENGTH_SHORT).show()' >> app/src/main/java/com/oa/app/MainActivity.kt
-          echo '            }' >> app/src/main/java/com/oa/app/MainActivity.kt
-          echo '        }' >> app/src/main/java/com/oa/app/MainActivity.kt
-          echo '' >> app/src/main/java/com/oa/app/MainActivity.kt
-          echo '        statusTextView.text = "OA办公系统版本 1.0.0"' >> app/src/main/java/com/oa/app/MainActivity.kt
-          echo '    }' >> app/src/main/java/com/oa/app/MainActivity.kt
-          echo '}' >> app/src/main/java/com/oa/app/MainActivity.kt
-          
-          # 2. 创建最简单的activity_main.xml
           mkdir -p app/src/main/res/layout
-          echo '<?xml version="1.0" encoding="utf-8"?>' > app/src/main/res/layout/activity_main.xml
-          echo '<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"' >> app/src/main/res/layout/activity_main.xml
-          echo '    xmlns:tools="http://schemas.android.com/tools"' >> app/src/main/res/layout/activity_main.xml
-          echo '    android:layout_width="match_parent"' >> app/src/main/res/layout/activity_main.xml
-          echo '    android:layout_height="match_parent"' >> app/src/main/res/layout/activity_main.xml
-          echo '    android:orientation="vertical"' >> app/src/main/res/layout/activity_main.xml
-          echo '    android:padding="16dp"' >> app/src/main/res/layout/activity_main.xml
-          echo '    android:gravity="center"' >> app/src/main/res/layout/activity_main.xml
-          echo '    tools:context=".MainActivity">' >> app/src/main/res/layout/activity_main.xml
-          echo '' >> app/src/main/res/layout/activity_main.xml
-          echo '    <TextView' >> app/src/main/layout/activity_main.xml
-          echo '        android:id="@+id/titleTextView"' >> app/src/main/layout/activity_main.xml
-          echo '        android:layout_width="wrap_content"' >> app/src/main/layout/activity_main.xml
-          echo '        android:layout_height="wrap_content"' >> app/src/main/layout/activity_main.xml
-          echo '        android:text="OA办公系统"' >> app/src/main/layout/activity_main.xml
-          echo '        android:textSize="24sp"' >> app/src/main/layout/activity_main.xml
-          echo '        android:textStyle="bold"' >> app/src/main/layout/activity_main.xml
-          echo '        android:layout_marginBottom="32dp"/>' >> app/src/main/layout/activity_main.xml
-          echo '' >> app/src/main/layout/activity_main.xml
-          echo '    <EditText' >> app/src/main/layout/activity_main.xml
-          echo '        android:id="@+id/employeeIdEditText"' >> app/src/main/layout/activity_main.xml
-          echo '        android:layout_width="match_parent"' >> app/src/main/layout/activity_main.xml
-          echo '        android:layout_height="wrap_content"' >> app/src/main/layout/activity_main.xml
-          echo '        android:hint="员工ID"' >> app/src/main/layout/activity_main.xml
-          echo '        android:layout_marginBottom="16dp"/>' >> app/src/main/layout/activity_main.xml
-          echo '' >> app/src/main/layout/activity_main.xml
-          echo '    <EditText' >> app/src/main/layout/activity_main.xml
-          echo '        android:id="@+id/passwordEditText"' >> app/src/main/layout/activity_main.xml
-          echo '        android:layout_width="match_parent"' >> app/src/main/layout/activity_main.xml
-          echo '        android:layout_height="wrap_content"' >> app/src/main/layout/activity_main.xml
-          echo '        android:hint="密码"' >> app/src/main/layout/activity_main.xml
-          echo '        android:inputType="textPassword"' >> app/src/main/layout/activity_main.xml
-          echo '        android:layout_marginBottom="24dp"/>' >> app/src/main/layout/activity_main.xml
-          echo '' >> app/src/main/layout/activity_main.xml
-          echo '    <Button' >> app/src/main/layout/activity_main.xml
-          echo '        android:id="@+id/loginButton"' >> app/src/main/layout/activity_main.xml
-          echo '        android:layout_width="match_parent"' >> app/src/main/layout/activity_main.xml
-          echo '        android:layout_height="wrap_content"' >> app/src/main/layout/activity_main.xml
-          echo '        android:text="登录"' >> app/src/main/layout/activity_main.xml
-          echo '        android:textSize="18sp"' >> app/src/main/layout/activity_main.xml
-          echo '        android:layout_marginBottom="32dp"/>' >> app/src/main/layout/activity_main.xml
-          echo '' >> app/src/main/layout/activity_main.xml
-          echo '    <TextView' >> app/src/main/layout/activity_main.xml
-          echo '        android:id="@+id/statusTextView"' >> app/src/main/layout/activity_main.xml
-          echo '        android:layout_width="match_parent"' >> app/src/main/layout/activity_main.xml
-          echo '        android:layout_height="wrap_content"' >> app/src/main/layout/activity_main.xml
-          echo '        android:text="准备登录..."' >> app/src/main/layout/activity_main.xml
-          echo '        android:textSize="16sp"' >> app/src/main/layout/activity_main.xml
-          echo '        android:gravity="center"' >> app/src/main/layout/activity_main.xml
-          echo '        android:padding="16dp"/>' >> app/src/main/layout/activity_main.xml
-          echo '' >> app/src/main/layout/activity_main.xml
-          echo '</LinearLayout>' >> app/src/main/layout/activity_main.xml
+          mkdir -p app/src/main/res/values
+          
+          # 1. 创建MainActivity.kt
+          cat > app/src/main/java/com/oa/app/MainActivity.kt << 'EOF'
+package com.oa.app
+
+import android.os.Bundle
+import android.widget.Button
+import android.widget.EditText
+import android.widget.TextView
+import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
+
+class MainActivity : AppCompatActivity() {
+    
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+        
+        val employeeIdEditText = findViewById<EditText>(R.id.employeeIdEditText)
+        val passwordEditText = findViewById<EditText>(R.id.passwordEditText)
+        val loginButton = findViewById<Button>(R.id.loginButton)
+        val statusTextView = findViewById<TextView>(R.id.statusTextView)
+        
+        loginButton.setOnClickListener {
+            val employeeId = employeeIdEditText.text.toString()
+            val password = passwordEditText.text.toString()
+            
+            if (employeeId.isEmpty() || password.isEmpty()) {
+                Toast.makeText(this, "请输入员工ID和密码", Toast.LENGTH_SHORT).show()
+            } else {
+                statusTextView.text = "登录成功！员工ID: $employeeId"
+                Toast.makeText(this, "登录成功！", Toast.LENGTH_SHORT).show()
+            }
+        }
+        
+        statusTextView.text = "OA办公系统版本 1.0.0"
+    }
+}
+EOF
+          
+          # 2. 创建activity_main.xml
+          cat > app/src/main/res/layout/activity_main.xml << 'EOF'
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:gravity="center">
+    
+    <TextView
+        android:id="@+id/titleTextView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="OA办公系统"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="32dp"/>
+    
+    <EditText
+        android:id="@+id/employeeIdEditText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="员工ID"
+        android:layout_marginBottom="16dp"/>
+    
+    <EditText
+        android:id="@+id/passwordEditText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="密码"
+        android:inputType="textPassword"
+        android:layout_marginBottom="24dp"/>
+    
+    <Button
+        android:id="@+id/loginButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="登录"
+        android:textSize="18sp"
+        android:layout_marginBottom="32dp"/>
+    
+    <TextView
+        android:id="@+id/statusTextView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="准备登录..."
+        android:textSize="16sp"
+        android:gravity="center"
+        android:padding="16dp"/>
+</LinearLayout>
+EOF
           
           # 3. 创建AndroidManifest.xml
-          mkdir -p app/src/main
-          echo '<?xml version="1.0" encoding="utf-8"?>' > app/src/main/AndroidManifest.xml
-          echo '<manifest xmlns:android="http://schemas.android.com/apk/res/android">' >> app/src/main/AndroidManifest.xml
-          echo '' >> app/src/main/AndroidManifest.xml
-          echo '    <uses-permission android:name="android.permission.INTERNET" />' >> app/src/main/AndroidManifest.xml
-          echo '' >> app/src/main/AndroidManifest.xml
-          echo '    <application' >> app/src/main/AndroidManifest.xml
-          echo '        android:allowBackup="true"' >> app/src/main/AndroidManifest.xml
-          echo '        android:icon="@mipmap/ic_launcher"' >> app/src/main/AndroidManifest.xml
-          echo '        android:label="OA办公"' >> app/src/main/AndroidManifest.xml
-          echo '        android:roundIcon="@mipmap/ic_launcher_round"' >> app/src/main/AndroidManifest.xml
-          echo '        android:supportsRtl="true"' >> app/src/main/AndroidManifest.xml
-          echo '        android:theme="@style/Theme.AppCompat.Light.DarkActionBar">' >> app/src/main/AndroidManifest.xml
-          echo '' >> app/src/main/AndroidManifest.xml
-          echo '        <activity' >> app/src/main/AndroidManifest.xml
-          echo '            android:name=".MainActivity"' >> app/src/main/AndroidManifest.xml
-          echo '            android:exported="true">' >> app/src/main/AndroidManifest.xml
-          echo '            <intent-filter>' >> app/src/main/AndroidManifest.xml
-          echo '                <action android:name="android.intent.action.MAIN" />' >> app/src/main/AndroidManifest.xml
-          echo '                <category android:name="android.intent.category.LAUNCHER" />' >> app/src/main/AndroidManifest.xml
-          echo '            </intent-filter>' >> app/src/main/AndroidManifest.xml
-          echo '        </activity>' >> app/src/main/AndroidManifest.xml
-          echo '    </application>' >> app/src/main/AndroidManifest.xml
-          echo '</manifest>' >> app/src/main/AndroidManifest.xml
+          cat > app/src/main/AndroidManifest.xml << 'EOF'
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    
+    <uses-permission android:name="android.permission.INTERNET" />
+    
+    <application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="OA办公"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.AppCompat.Light.DarkActionBar">
+        
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>
+EOF
           
-          # 4. 创建资源文件
-          mkdir -p app/src/main/res/values
-          echo '<?xml version="1.0" encoding="utf-8"?>' > app/src/main/res/values/strings.xml
-          echo '<resources>' >> app/src/main/res/values/strings.xml
-          echo '    <string name="app_name">OA办公</string>' >> app/src/main/res/values/strings.xml
-          echo '</resources>' >> app/src/main/res/values/strings.xml
+          # 4. 创建strings.xml
+          cat > app/src/main/res/values/strings.xml << 'EOF'
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">OA办公</string>
+</resources>
+EOF
           
           # 5. 创建build.gradle
-          echo 'plugins {' > app/build.gradle
-          echo '    id "com.android.application"' >> app/build.gradle
-          echo '    id "org.jetbrains.kotlin.android"' >> app/build.gradle
-          echo '}' >> app/build.gradle
-          echo '' >> app/build.gradle
-          echo 'android {' >> app/build.gradle
-          echo '    namespace "com.oa.app"' >> app/build.gradle
-          echo '    compileSdk 34' >> app/build.gradle
-          echo '' >> app/build.gradle
-          echo '    defaultConfig {' >> app/build.gradle
-          echo '        applicationId "com.oa.app"' >> app/build.gradle
-          echo '        minSdk 21' >> app/build.gradle
-          echo '        targetSdk 34' >> app/build.gradle
-          echo '        versionCode 1' >> app/build.gradle
-          echo '        versionName "1.0.0"' >> app/build.gradle
-          echo '    }' >> app/build.gradle
-          echo '' >> app/build.gradle
-          echo '    buildTypes {' >> app/build.gradle
-          echo '        release {' >> app/build.gradle
-          echo '            minifyEnabled false' >> app/build.gradle
-          echo '            proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"' >> app/build.gradle
-          echo '        }' >> app/build.gradle
-          echo '    }' >> app/build.gradle
-          echo '' >> app/build.gradle
-          echo '    compileOptions {' >> app/build.gradle
-          echo '        sourceCompatibility JavaVersion.VERSION_1_8' >> app/build.gradle
-          echo '        targetCompatibility JavaVersion.VERSION_1_8' >> app/build.gradle
-          echo '    }' >> app/build.gradle
-          echo '' >> app/src/main/AndroidManifest.xml
-          echo '    kotlinOptions {' >> app/build.gradle
-          echo '        jvmTarget = "1.8"' >> app/build.gradle
-          echo '    }' >> app/build.gradle
-          echo '}' >> app/build.gradle
-          echo '' >> app/build.gradle
-          echo 'dependencies {' >> app/build.gradle
-          echo '    implementation "androidx.core:core-ktx:1.12.0"' >> app/build.gradle
-          echo '    implementation "androidx.appcompat:appcompat:1.6.1"' >> app/build.gradle
-          echo '    implementation "com.google.android.material:material:1.11.0"' >> app/build.gradle
-          echo '}' >> app/build.gradle
+          cat > app/build.gradle << 'EOF'
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+}
+
+android {
+    namespace 'com.oa.app'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.oa.app"
+        minSdk 21
+        targetSdk 34
+        versionCode 1
+        versionName "1.0.0"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+    
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+    
+    kotlinOptions {
+        jvmTarget = '1.8'
+    }
+}
+
+dependencies {
+    implementation 'androidx.core:core-ktx:1.12.0'
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'com.google.android.material:material:1.11.0'
+}
+EOF
           
           # 6. 构建APK
           if [ -f "gradlew" ]; then
