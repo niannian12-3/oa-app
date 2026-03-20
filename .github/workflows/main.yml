@@ -37,33 +37,108 @@ jobs:
             sed -i 's/android:roundIcon="@mipmap\/ic_launcher_round"//g' app/src/main/AndroidManifest.xml
           fi
           
-          # 修复AuthManager.kt
+          # 修复AuthManager.kt - 完全重写
           if [ -f "app/src/main/java/com/oa/app/util/AuthManager.kt" ]; then
-            sed -i 's/\.firstOrNull()/.first()/g' app/src/main/java/com/oa/app/util/AuthManager.kt
+            cat > app/src/main/java/com/oa/app/util/AuthManager.kt << 'EOF'
+package com.oa.app.util
+
+import android.content.Context
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.*
+import androidx.datastore.preferences.preferencesDataStore
+import com.oa.app.Config
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+
+val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
+
+class AuthManager(private val context: Context) {
+    
+    val tokenFlow: Flow<String?> = context.dataStore.data.map { preferences ->
+        preferences[stringPreferencesKey(Config.PREF_TOKEN)]
+    }
+    
+    suspend fun saveToken(token: String) {
+        context.dataStore.edit { preferences ->
+            preferences[stringPreferencesKey(Config.PREF_TOKEN)] = token
+        }
+    }
+    
+    suspend fun saveUserInfo(employeeId: String, name: String) {
+        context.dataStore.edit { preferences ->
+            preferences[stringPreferencesKey(Config.PREF_EMPLOYEE_ID)] = employeeId
+            preferences[stringPreferencesKey(Config.PREF_NAME)] = name
+        }
+    }
+    
+    suspend fun clearAuth() {
+        context.dataStore.edit { preferences ->
+            preferences.clear()
+        }
+    }
+    
+    suspend fun getToken(): String? {
+        val flow = context.dataStore.data.map { preferences ->
+            preferences[stringPreferencesKey(Config.PREF_TOKEN)]
+        }
+        return flow.firstOrNull()
+    }
+    
+    suspend fun isLoggedIn(): Boolean {
+        return getToken() != null
+    }
+}
+EOF
           fi
           
-          # 修复LocationHelper.kt - 使用简单方法
+          # 修复LocationHelper.kt
           if [ -f "app/src/main/java/com/oa/app/util/LocationHelper.kt" ]; then
-            # 创建最简单的LocationHelper.kt，没有复杂依赖
-            echo 'package com.oa.app.util' > app/src/main/java/com/oa/app/util/LocationHelper.kt
-            echo '' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
-            echo 'import android.Manifest' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
-            echo 'import android.content.Context' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
-            echo 'import android.content.pm.PackageManager' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
-            echo 'import android.location.Address' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
-            echo 'import android.location.Geocoder' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
-            echo 'import androidx.core.content.ContextCompat' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
-            echo 'import java.util.Locale' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
-            echo '' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
-            echo 'class LocationHelper(private val context: Context) {' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
-            echo '' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
-            echo '    fun hasLocationPermission(): Boolean {' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
-            echo '        return ContextCompat.checkSelfPermission(' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
-            echo '            context,' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
-            echo '            Manifest.permission.ACCESS_FINE_LOCATION' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
-            echo '        ) == PackageManager.PERMISSION_GRANTED' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
-            echo '    }' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
-            echo '}' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+            cat > app/src/main/java/com/oa/app/util/LocationHelper.kt << 'EOF'
+package com.oa.app.util
+
+import android.Manifest
+import android.content.Context
+import android.content.pm.PackageManager
+import android.location.Address
+import android.location.Geocoder
+import androidx.core.content.ContextCompat
+import java.util.Locale
+
+class LocationHelper(private val context: Context) {
+    
+    fun hasLocationPermission(): Boolean {
+        return ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.ACCESS_FINE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
+    }
+    
+    fun getAddressFromLocation(latitude: Double, longitude: Double): String? {
+        return try {
+            val geocoder = Geocoder(context, Locale.getDefault())
+            val addresses: List<Address>? = geocoder.getFromLocation(latitude, longitude, 1)
+            addresses?.firstOrNull()?.let { address ->
+                val addressParts = mutableListOf<String>()
+                for (i in 0 until address.maxAddressLineIndex) {
+                    address.getAddressLine(i)?.let { line ->
+                        addressParts.add(line)
+                    }
+                }
+                addressParts.joinToString(", ")
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
+    
+    data class LocationData(
+        val latitude: Double,
+        val longitude: Double,
+        val address: String?,
+        val accuracy: Float
+    )
+}
+EOF
           fi
           
           if [ -f "gradlew" ]; then
