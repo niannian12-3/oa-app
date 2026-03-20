@@ -40,7 +40,7 @@ jobs:
           # 创建必要的目录
           mkdir -p app/src/main/java/com/oa/app/util
           
-          # 修复AuthManager.kt - 最简单的稳定版本
+          # 修复AuthManager.kt - 使用最简单的方法
           echo 'package com.oa.app.util' > app/src/main/java/com/oa/app/util/AuthManager.kt
           echo '' >> app/src/main/java/com/oa/app/util/AuthManager.kt
           echo 'import android.content.Context' >> app/src/main/java/com/oa/app/util/AuthManager.kt
@@ -48,8 +48,7 @@ jobs:
           echo 'import androidx.datastore.preferences.core.*' >> app/src/main/java/com/oa/app/util/AuthManager.kt
           echo 'import androidx.datastore.preferences.preferencesDataStore' >> app/src/main/java/com/oa/app/util/AuthManager.kt
           echo 'import com.oa.app.Config' >> app/src/main/java/com/oa/app/util/AuthManager.kt
-          echo 'import kotlinx.coroutines.flow.Flow' >> app/src/main/java/com/oa/app/util/AuthManager.kt
-          echo 'import kotlinx.coroutines.flow.map' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+          echo 'import kotlinx.coroutines.flow.firstOrNull' >> app/src/main/java/com/oa/app/util/AuthManager.kt
           echo '' >> app/src/main/java/com/oa/app/util/AuthManager.kt
           echo 'val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")' >> app/src/main/java/com/oa/app/util/AuthManager.kt
           echo '' >> app/src/main/java/com/oa/app/util/AuthManager.kt
@@ -69,8 +68,8 @@ jobs:
           echo '' >> app/src/main/java/com/oa/app/util/AuthManager.kt
           echo '    suspend fun getToken(): String? {' >> app/src/main/java/com/oa/app/util/AuthManager.kt
           echo '        return try {' >> app/src/main/java/com/oa/app/util/AuthManager.kt
-          echo '            val preferences = context.dataStore.data.first()' >> app/src/main/java/com/oa/app/util/AuthManager.kt
-          echo '            preferences[stringPreferencesKey(Config.PREF_TOKEN)]' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+          echo '            val preferences = context.dataStore.data.firstOrNull()' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+          echo '            preferences?.get(stringPreferencesKey(Config.PREF_TOKEN))' >> app/src/main/java/com/oa/app/util/AuthManager.kt
           echo '        } catch (e: Exception) {' >> app/src/main/java/com/oa/app/util/AuthManager.kt
           echo '            null' >> app/src/main/java/com/oa/app/util/AuthManager.kt
           echo '        }' >> app/src/main/java/com/oa/app/util/AuthManager.kt
