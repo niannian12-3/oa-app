@@ -59,16 +59,15 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
 class LocationHelper(private val context: Context) {
-    
+ 
     private val fusedLocationClient: FusedLocationProviderClient = 
         LocationServices.getFusedLocationProviderClient(context)
-    
+ 
     suspend fun getCurrentLocation(): LocationData? {
         if (ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.ACCESS_FINE_LOCATION
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
+            context,
+            Manifest.permission.ACCESS_FINE_LOCATION
+        ) != PackageManager.PERMISSION_GRANTED) {
             return null
         }
         
