@@ -180,7 +180,7 @@ jobs:
           echo '    </style>' >> app/src/main/res/values/themes.xml
           echo '</resources>' >> app/src/main/res/values/themes.xml
           
-          # 5. 创建最简单的build.gradle - 移除所有可能导致问题的依赖
+          # 5. 创建最简单的build.gradle
           echo 'plugins {' > app/build.gradle
           echo '    id "com.android.application"' >> app/build.gradle
           echo '    id "org.jetbrains.kotlin.android"' >> app/build.gradle
@@ -203,3 +203,4 @@ jobs:
           echo '    buildTypes {' >> app/build.gradle
           echo '        release {' >> app/build.gradle
           echo '            minifyEnabled false' >> app/build.gradle
+          echo '            proguardFiles getDefault
