@@ -1,3 +1,140 @@
+// 文件1: android/app/src/main/java/com/oa/app/util/AuthManager.kt
+package com.oa.app.util
+
+import android.content.Context
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.*
+import androidx.datastore.preferences.preferencesDataStore
+import com.oa.app.Config
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.first
+
+val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
+
+class AuthManager(private val context: Context) {
+    
+    val tokenFlow: Flow<String?> = context.dataStore.data.map { preferences ->
+        preferences[stringPreferencesKey(Config.PREF_TOKEN)]
+    }
+    
+    suspend fun saveToken(token: String) {
+        context.dataStore.edit { preferences ->
+            preferences[stringPreferencesKey(Config.PREF_TOKEN)] = token
+        }
+    }
+    
+    suspend fun saveUserInfo(employeeId: String, name: String) {
+        context.dataStore.edit { preferences ->
+            preferences[stringPreferencesKey(Config.PREF_EMPLOYEE_ID)] = employeeId
+            preferences[stringPreferencesKey(Config.PREF_NAME)] = name
+        }
+    }
+    
+    suspend fun clearAuth() {
+        context.dataStore.edit { preferences ->
+            preferences.clear()
+        }
+    }
+    
+    suspend fun getToken(): String? {
+        return context.dataStore.data.map { preferences ->
+            preferences[stringPreferencesKey(Config.PREF_TOKEN)]
+        }.first()
+    }
+    
+    suspend fun isLoggedIn(): Boolean {
+        return getToken() != null
+    }
+}
+
+// 文件2: android/app/src/main/java/com/oa/app/util/LocationHelper.kt
+package com.oa.app.util
+
+import android.Manifest
+import android.content.Context
+import android.content.pm.PackageManager
+import android.location.Address
+import android.location.Geocoder
+import android.location.Location
+import androidx.core.content.ContextCompat
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationServices
+import kotlinx.coroutines.suspendCancellableCoroutine
+import java.util.Locale
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
+
+class LocationHelper(private val context: Context) {
+    
+    private val fusedLocationClient: FusedLocationProviderClient = 
+        LocationServices.getFusedLocationProviderClient(context)
+    
+    suspend fun getCurrentLocation(): LocationData? {
+        if (ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            return null
+        }
+        
+        return try {
+            val location = getLastLocation()
+            
+            location?.let { loc ->
+                val address = getAddressFromLocation(loc.latitude, loc.longitude)
+                LocationData(
+                    latitude = loc.latitude,
+                    longitude = loc.longitude,
+                    address = address,
+                    accuracy = loc.accuracy
+                )
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+    
+    private suspend fun getLastLocation(): Location? = suspendCancellableCoroutine { continuation ->
+        fusedLocationClient.lastLocation
+            .addOnSuccessListener { location ->
+                continuation.resume(location)
+            }
+            .addOnFailureListener { exception ->
+                continuation.resumeWithException(exception)
+            }
+    }
+    
+    private fun getAddressFromLocation(latitude: Double, longitude: Double): String? {
+        return try {
+            val geocoder = Geocoder(context, Locale.getDefault())
+            val addresses: List<Address>? = geocoder.getFromLocation(latitude, longitude, 1)
+            addresses?.firstOrNull()?.let { address ->
+                val addressParts = mutableListOf<String>()
+                val maxLines = address.maxAddressLineIndex
+                for (i in 0..maxLines) {
+                    address.getAddressLine(i)?.let { line ->
+                        addressParts.add(line)
+                    }
+                }
+                addressParts.joinToString(", ")
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
+    
+    data class LocationData(
+        val latitude: Double,
+        val longitude: Double,
+        val address: String?,
+        val accuracy: Float
+    )
+}
+
+// 文件3: .github/workflows/build-apk.yml
 name: Build APK
 on: [push]
 jobs:
@@ -6,117 +143,47 @@ jobs:
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
-      - uses: actions/checkout@v4
-      - run: |
-          sudo apt update
-          sudo apt install -y openjdk-17-jdk wget unzip
-          mkdir -p ~/android-sdk
-          cd ~/android-sdk
-          wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
-          unzip -q commandlinetools-linux-9477386_latest.zip
-          mv cmdline-tools cmdline-tools-temp
-          mkdir -p cmdline-tools
-          mv cmdline-tools-temp cmdline-tools/latest
-          export ANDROID_HOME=~/android-sdk
-          export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin
-          yes | sdkmanager --licenses
-          sdkmanager "platforms;android-34" "build-tools;34.0.0"
-          cd $GITHUB_WORKSPACE
-      - name: Fix Android project - USE APPCOMPAT THEME
-        run: |
-          if [ -d "android" ]; then
-            cd android
-            
-            # 1. 确保有AppCompat依赖
-            if [ -f "app/build.gradle" ]; then
-              # 检查是否已经有dependencies块
-              if grep -q "dependencies {" app/build.gradle; then
-                # 添加AppCompat依赖
-                if ! grep -q "androidx.appcompat:appcompat" app/build.gradle; then
-                  sed -i '/dependencies {/a\    implementation "androidx.appcompat:appcompat:1.6.1"' app/build.gradle
-                fi
-              else
-                # 如果没有dependencies块，在文件末尾添加
-                echo '' >> app/build.gradle
-                echo 'dependencies {' >> app/build.gradle
-                echo '    implementation "androidx.appcompat:appcompat:1.6.1"' >> app/build.gradle
-                echo '}' >> app/build.gradle
-              fi
-            fi
-            
-            # 2. 创建使用AppCompat的主题文件
-            mkdir -p app/src/main/res/values
-            echo '<?xml version="1.0" encoding="utf-8"?>' > app/src/main/res/values/themes.xml
-            echo '<resources>' >> app/src/main/res/values/themes.xml
-            echo '    <style name="Theme.OAApp" parent="Theme.AppCompat.Light.DarkActionBar">' >> app/src/main/res/values/themes.xml
-            echo '        <item name="colorPrimary">#3F51B5</item>' >> app/src/main/res/values/themes.xml
-            echo '        <item name="colorPrimaryDark">#303F9F</item>' >> app/src/main/res/values/themes.xml
-            echo '        <item name="colorAccent">#FF4081</item>' >> app/src/main/res/values/themes.xml
-            echo '    </style>' >> app/src/main/res/values/themes.xml
-            echo '</resources>' >> app/src/main/res/values/themes.xml
-            
-            # 3. 创建完整的strings.xml
-            echo '<?xml version="1.0" encoding="utf-8"?>' > app/src/main/res/values/strings.xml
-            echo '<resources>' >> app/src/main/res/values/strings.xml
-            echo '    <string name="app_name">OA App</string>' >> app/src/main/res/values/strings.xml
-            echo '    <string name="clock_in">Clock In</string>' >> app/src/main/res/values/strings.xml
-            echo '    <string name="clock_out">Clock Out</string>' >> app/src/main/res/values/strings.xml
-            echo '    <string name="login_title">Login</string>' >> app/src/main/res/values/strings.xml
-            echo '    <string name="employee_id">Employee ID</string>' >> app/src/main/res/values/strings.xml
-            echo '    <string name="password">Password</string>' >> app/src/main/res/values/strings.xml
-            echo '    <string name="login">Login</string>' >> app/src/main/res/values/strings.xml
-            echo '    <string name="nav_attendance">Attendance</string>' >> app/src/main/res/values/strings.xml
-            echo '    <string name="nav_leave">Leave</string>' >> app/src/main/res/values/strings.xml
-            echo '    <string name="nav_expense">Expense</string>' >> app/src/main/res/values/strings.xml
-            echo '    <string name="nav_employees">Employees</string>' >> app/src/main/res/values/strings.xml
-            echo '    <string name="nav_mine">Mine</string>' >> app/src/main/res/values/strings.xml
-            echo '    <string name="attendance">Attendance</string>' >> app/src/main/res/values/strings.xml
-            echo '    <string name="leave">Leave</string>' >> app/src/main/res/values/strings.xml
-            echo '    <string name="expense">Expense</string>' >> app/src/main/res/values/strings.xml
-            echo '    <string name="employees">Employees</string>' >> app/src/main/res/values/strings.xml
-            echo '</resources>' >> app/src/main/res/values/strings.xml
-            
-            # 4. 修复AndroidManifest.xml - 强制使用AppCompat主题
-            if [ -f "app/src/main/AndroidManifest.xml" ]; then
-              # 读取文件内容
-              content=$(cat app/src/main/AndroidManifest.xml)
-              
-              # 替换所有主题引用为Theme.OAApp
-              content=${content//Theme\.Material3\.DayNight\.DarkActionBar/Theme.OAApp}
-              content=${content//Theme\.Material3/Theme.OAApp}
-              content=${content//android:theme=\"@style\/Theme\"/android:theme=\"@style\/Theme.OAApp\"}
-              
-              # 移除图标引用
-              content=${content//android:icon=\"@mipmap\/ic_launcher\"/}
-              content=${content//android:roundIcon=\"@mipmap\/ic_launcher_round\"/}
-              
-              # 写回文件
-              echo "$content" > app/src/main/AndroidManifest.xml
-            fi
-            
-            echo "项目修复完成：使用AppCompat主题"
-          fi
-      - run: |
-          if [ -d "android" ]; then
-            cd android
-            if [ -f "gradlew" ]; then
-              chmod +x gradlew
-              ./gradlew clean
-              ./gradlew assembleDebug --stacktrace
-            else
-              wget -q https://services.gradle.org/distributions/gradle-8.2-bin.zip
-              unzip -q gradle-8.2-bin.zip
-              ./gradle-8.2/bin/gradle wrapper --gradle-version 8.2
-              chmod +x gradlew
-              ./gradlew clean
-              ./gradlew assembleDebug --stacktrace
-            fi
+    - uses: actions/checkout@v4
+    - run: |
+        sudo apt update
+        sudo apt install -y openjdk-17-jdk wget unzip
+        mkdir -p ~/android-sdk
+        cd ~/android-sdk
+        wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
+        unzip -q commandlinetools-linux-9477386_latest.zip
+        mv cmdline-tools cmdline-tools-temp
+        mkdir -p cmdline-tools
+        mv cmdline-tools-temp cmdline-tools/latest
+        export ANDROID_HOME=~/android-sdk
+        export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin
+        yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
+        $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-34" "build-tools;34.0.0" "platform-tools"
+        cd $GITHUB_WORKSPACE
+    - run: |
+        if [ -d "android" ]; then
+          cd android
+          if [ -f "gradlew" ]; then
+            chmod +x gradlew
+            ./gradlew clean
+            ./gradlew assembleDebug --stacktrace
           else
-            echo "android directory not found"
-            exit 1
+            wget -q https://services.gradle.org/distributions/gradle-8.2-bin.zip
+            unzip -q gradle-8.2-bin.zip
+            ./gradle-8.2/bin/gradle wrapper --gradle-version 8.2
+            chmod +x gradlew
+            ./gradlew clean
+            ./gradlew assembleDebug --stacktrace
           fi
-      - uses: actions/upload-artifact@v4
-        if: success()
-        with:
-          name: apk
-          path: android/app/build/outputs/apk/debug/*.apk
+        else
+          echo "android directory not found"
+          exit 1
+        fi
+    - uses: actions/upload-artifact@v4
+      if: success()
+      with:
+        name: apk
+        path: android/app/build/outputs/apk/debug/*.apk
+
+// 文件4: 在android/app/build.gradle中添加这一行依赖
+// 找到这一行: implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
+// 在它下面添加: implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3'
