@@ -46,38 +46,36 @@ jobs:
         cd $PROJECT_DIR
         echo "🚀 Working in directory: $PROJECT_DIR"
         
-        # --- 生成/修复 Gradle Wrapper ---
+        # --- 强制修复 Gradle Wrapper (暴力覆盖策略) ---
+        
+        # 1. 确保 gradlew 脚本存在
         if [ ! -f "gradlew" ]; then
-          echo "⚠️ gradlew not found! Downloading standard script..."
+          echo "⚠️ gradlew not found! Downloading..."
           wget -q https://raw.githubusercontent.com/gradle/gradle/master/gradlew -O gradlew
           chmod +x gradlew
-          echo "✅ gradlew downloaded."
         else
           chmod +x gradlew
-          echo "✅ Found existing gradlew."
         fi
 
+        # 2. 确保 gradle-wrapper.jar 存在
+        mkdir -p gradle/wrapper
         if [ ! -f "gradle/wrapper/gradle-wrapper.jar" ]; then
           echo "📥 Downloading gradle-wrapper.jar..."
-          mkdir -p gradle/wrapper
           wget -q https://raw.githubusercontent.com/gradle/gradle/master/gradle/wrapper/gradle-wrapper.jar -O gradle/wrapper/gradle-wrapper.jar
         fi
 
-        # 【关键修复】将 Gradle 版本升级为 8.2 以匹配 Android 插件要求
-        if [ ! -f "gradle/wrapper/gradle-wrapper.properties" ]; then
-          echo "📝 Creating gradle-wrapper.properties (Version 8.2)..."
-          mkdir -p gradle/wrapper
-          echo "distributionBase=GRADLE_USER_HOME" > gradle/wrapper/gradle-wrapper.properties
-          echo "distributionPath=wrapper/dists" >> gradle/wrapper/gradle-wrapper.properties
-          echo "distributionUrl=https\://services.gradle.org/distributions/gradle-8.2-bin.zip" >> gradle/wrapper/gradle-wrapper.properties
-          echo "networkTimeout=10000" >> gradle/wrapper/gradle-wrapper.properties
-          echo "zipStoreBase=GRADLE_USER_HOME" >> gradle/wrapper/gradle-wrapper.properties
-          echo "zipStorePath=wrapper/dists" >> gradle/wrapper/gradle-wrapper.properties
-        else
-          # 如果文件已存在但版本不对，强制修正为 8.2
-          sed -i 's/gradle-.*-bin.zip/gradle-8.2-bin.zip/g' gradle/wrapper/gradle-wrapper.properties
-          echo "✅ Ensured gradle-wrapper.properties uses version 8.2"
-        fi
+        # 3. 【关键】强制重写 gradle-wrapper.properties 为 Gradle 8.2
+        echo "🔨 FORCING Gradle version to 8.2..."
+        cat > gradle/wrapper/gradle-wrapper.properties << 'EOF'
+distributionBase=GRADLE_USER_HOME
+distributionPath=wrapper/dists
+distributionUrl=https\://services.gradle.org/distributions/gradle-8.2-bin.zip
+networkTimeout=10000
+zipStoreBase=GRADLE_USER_HOME
+zipStorePath=wrapper/dists
+EOF
+        echo "✅ gradle-wrapper.properties forced to version 8.2."
+        cat gradle/wrapper/gradle-wrapper.properties # 打印确认
 
         echo "🔨 Fixing source code..."
 
@@ -133,7 +131,7 @@ jobs:
         fi
 
         # 10. 编译
-        echo "🔨 Building APK..."
+        echo "🔨 Building APK with Gradle 8.2..."
         ./gradlew clean
         ./gradlew assembleDebug --stacktrace
 
