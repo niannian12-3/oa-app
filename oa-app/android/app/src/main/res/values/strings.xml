@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">OA 办公</string>
+    
+    <!-- 通用 -->
+    <string name="loading">加载中...</string>
+    <string name="submit">提交</string>
+    <string name="cancel">取消</string>
+    <string name="confirm">确认</string>
+    <string name="save">保存</string>
+    <string name="delete">删除</string>
+    <string name="edit">编辑</string>
+    <string name="search">搜索</string>
+    <string name="no_data">暂无数据</string>
+    <string name="network_error">网络错误，请检查连接</string>
+    <string name="success">操作成功</string>
+    <string name="failed">操作失败</string>
+    
+    <!-- 登录 -->
+    <string name="login_title">OA 办公</string>
+    <string name="employee_id">员工号</string>
+    <string name="password">密码</string>
+    <string name="login">登录</string>
+    <string name="login_error">登录失败，请检查账号密码</string>
+    
+    <!-- 打卡 -->
+    <string name="attendance">考勤打卡</string>
+    <string name="clock_in">上班打卡</string>
+    <string name="clock_out">下班打卡</string>
+    <string name="clock_in_success">上班打卡成功</string>
+    <string name="clock_out_success">下班打卡成功</string>
+    <string name="location_required">需要定位权限才能打卡</string>
+    <string name="camera_required">需要相机权限才能拍照</string>
+    <string name="take_photo">拍照打卡</string>
+    <string name="my_records">我的记录</string>
+    
+    <!-- 请假 -->
+    <string name="leave">请假申请</string>
+    <string name="leave_type">请假类型</string>
+    <string name="leave_reason">请假事由</string>
+    <string name="leave_days">请假天数</string>
+    <string name="leave_apply">提交申请</string>
+    <string name="leave_pending">待审批</string>
+    <string name="leave_approved">已通过</string>
+    <string name="leave_rejected">已拒绝</string>
+    
+    <!-- 报销 -->
+    <string name="expense">费用报销</string>
+    <string name="expense_type">费用类型</string>
+    <string name="expense_amount">报销金额</string>
+    <string name="expense_description">费用说明</string>
+    <string name="expense_receipt">上传凭证</string>
+    <string name="expense_apply">提交报销</string>
+    
+    <!-- 员工 -->
+    <string name="employees">员工花名册</string>
+    <string name="department">部门</string>
+    <string name="position">职位</string>
+    <string name="entry_date">入职日期</string>
+    <string name="phone">电话</string>
+    <string name="email">邮箱</string>
+    
+    <!-- 导航 -->
+    <string name="nav_home">首页</string>
+    <string name="nav_attendance">打卡</string>
+    <string name="nav_leave">请假</string>
+    <string name="nav_expense">报销</string>
+    <string name="nav_employees">员工</string>
+    <string name="nav_mine">我的</string>
+    
+    <!-- 审批 -->
+    <string name="approval">审批</string>
+    <string name="approve">同意</string>
+    <string name="reject">拒绝</string>
+    <string name="remark">备注</string>
+    <string name="pending_approval">待我审批</string>
+</resources>
