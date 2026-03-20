@@ -1,8 +1,8 @@
-package com.oa.app
+包 com.oa.app
 
-object Config {
-    const val PREF_TOKEN = "user_token"
-    const val PREF_EMPLOYEE_ID = "employee_id"
-    const val PREF_NAME = "user_name"
-    const val API_BASE_URL = "http://192.168.11.43:8080/" 
+对象 配置 {
+    常量 值 预设令牌 = "用户令牌"
+    常量 值 PREF_EMPLOYEE_ID = "employee_id"
+    常量 值 偏好名称 = "用户名"
+    常量 值 API_BASE_URL = "http://192.168.11.43:3000/"
 }
