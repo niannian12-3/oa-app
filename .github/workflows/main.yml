@@ -37,54 +37,52 @@ jobs:
             sed -i 's/\.firstOrNull()/.first()/g' app/src/main/java/com/oa/app/util/AuthManager.kt
           fi
           
-          # 修复LocationHelper.kt
+          # 修复LocationHelper.kt - 使用简单方法，避免EOF问题
           if [ -f "app/src/main/java/com/oa/app/util/LocationHelper.kt" ]; then
-            cat > app/src/main/java/com/oa/app/util/LocationHelper.kt << 'EOF'
-package com.oa.app.util
-
-import android.Manifest
-import android.content.Context
-import android.content.pm.PackageManager
-import android.location.Address
-import android.location.Geocoder
-import androidx.core.content.ContextCompat
-import java.util.Locale
-
-class LocationHelper(private val context: Context) {
-    
-    fun hasLocationPermission(): Boolean {
-        return ContextCompat.checkSelfPermission(
-            context,
-            Manifest.permission.ACCESS_FINE_LOCATION
-        ) == PackageManager.PERMISSION_GRANTED
-    }
-    
-    fun getAddressFromLocation(latitude: Double, longitude: Double): String? {
-        return try {
-            val geocoder = Geocoder(context, Locale.getDefault())
-            val addresses: List<Address>? = geocoder.getFromLocation(latitude, longitude, 1)
-            addresses?.firstOrNull()?.let { address ->
-                val addressParts = mutableListOf<String>()
-                for (i in 0 until address.maxAddressLineIndex) {
-                    address.getAddressLine(i)?.let { line ->
-                        addressParts.add(line)
-                    }
-                }
-                addressParts.joinToString(", ")
-            }
-        } catch (e: Exception) {
-            null
-        }
-    }
-    
-    data class LocationData(
-        val latitude: Double,
-        val longitude: Double,
-        val address: String?,
-        val accuracy: Float
-    )
-}
-EOF
+            echo 'package com.oa.app.util' > app/src/main/java/com/oa/app/util/LocationHelper.kt
+            echo '' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+            echo 'import android.Manifest' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+            echo 'import android.content.Context' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+            echo 'import android.content.pm.PackageManager' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+            echo 'import android.location.Address' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+            echo 'import android.location.Geocoder' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+            echo 'import androidx.core.content.ContextCompat' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+            echo 'import java.util.Locale' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+            echo '' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+            echo 'class LocationHelper(private val context: Context) {' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+            echo '' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+            echo '    fun hasLocationPermission(): Boolean {' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+            echo '        return ContextCompat.checkSelfPermission(' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+            echo '            context,' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+            echo '            Manifest.permission.ACCESS_FINE_LOCATION' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+            echo '        ) == PackageManager.PERMISSION_GRANTED' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+            echo '    }' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+            echo '' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+            echo '    fun getAddressFromLocation(latitude: Double, longitude: Double): String? {' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+            echo '        return try {' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+            echo '            val geocoder = Geocoder(context, Locale.getDefault())' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+            echo '            val addresses: List<Address>? = geocoder.getFromLocation(latitude, longitude, 1)' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+            echo '            addresses?.firstOrNull()?.let { address ->' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+            echo '                val addressParts = mutableListOf<String>()' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+            echo '                for (i in 0 until address.maxAddressLineIndex) {' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+            echo '                    address.getAddressLine(i)?.let { line ->' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+            echo '                        addressParts.add(line)' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+            echo '                    }' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+            echo '                }' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+            echo '                addressParts.joinToString(", ")' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+            echo '            }' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+            echo '        } catch (e: Exception) {' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+            echo '            null' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+            echo '        }' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+            echo '    }' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+            echo '' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+            echo '    data class LocationData(' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+            echo '        val latitude: Double,' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+            echo '        val longitude: Double,' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+            echo '        val address: String?,' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+            echo '        val accuracy: Float' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+            echo '    )' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+            echo '}' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
           fi
           
           if [ -f "gradlew" ]; then
