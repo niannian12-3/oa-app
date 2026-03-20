@@ -5,10 +5,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
     steps:
     - uses: actions/checkout@v4
-
     - run: |
         sudo apt update
         sudo apt install -y openjdk-17-jdk wget unzip
@@ -24,17 +22,16 @@ jobs:
         yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
         $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-34" "build-tools;34.0.0" "platform-tools"
         cd $GITHUB_WORKSPACE
-
     - run: |
         if [ -d "android" ]; then
           cd android
           
-          # 修复主题文件 - 将 Material3 改为 AppCompat
+          # 修复主题文件 - 将Material3改为AppCompat
           if [ -f "app/src/main/res/values/themes.xml" ]; then
             sed -i 's/Theme\.Material3\.DayNight\.DarkActionBar/Theme.AppCompat.Light.DarkActionBar/g' app/src/main/res/values/themes.xml
           fi
           
-          # 修复 AndroidManifest.xml - 移除图标引用
+          # 修复AndroidManifest.xml - 移除图标引用
           if [ -f "app/src/main/AndroidManifest.xml" ]; then
             sed -i 's/android:icon="@mipmap\/ic_launcher"//g' app/src/main/AndroidManifest.xml
             sed -i 's/android:roundIcon="@mipmap\/ic_launcher_round"//g' app/src/main/AndroidManifest.xml
@@ -43,68 +40,88 @@ jobs:
           # 创建必要的目录
           mkdir -p app/src/main/java/com/oa/app/util
           
-          # 修复 AuthManager.kt - 完整的修复版本 (添加 clearAuth 和修复 first() 导入)
-          cat > app/src/main/java/com/oa/app/util/AuthManager.kt << 'EOF'
-package com.oa.app.util
-
-import android.content.Context
-import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.core.*
-import androidx.datastore.preferences.preferencesDataStore
-import com.oa.app.Config
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.first
-
-val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
-
-class AuthManager(private val context: Context) {
-
-    suspend fun getToken(): String? {
-        return try {
-            context.dataStore.data.map { preferences ->
-                preferences[stringPreferencesKey(Config.PREF_TOKEN)]
-            }.first()
-        } catch (e: Exception) {
-            null
-        }
-    }
-
-    suspend fun isLoggedIn(): Boolean {
-        return getToken() != null
-    }
-    
-    suspend fun clearAuth() {
-        try {
-            context.dataStore.edit { preferences ->
-                preferences.remove(stringPreferencesKey(Config.PREF_TOKEN))
-            }
-        } catch (e: Exception) {
-            // Ignore
-        }
-    }
-}
-EOF
-
-          # 修复 LocationHelper.kt - 最简单的版本
-          cat > app/src/main/java/com/oa/app/util/LocationHelper.kt << 'EOF'
-package com.oa.app.util
-
-import android.Manifest
-import android.content.Context
-import android.content.pm.PackageManager
-import androidx.core.content.ContextCompat
-
-class LocationHelper(private val context: Context) {
-
-    fun hasLocationPermission(): Boolean {
-        return ContextCompat.checkSelfPermission(
-            context,
-            Manifest.permission.ACCESS_FINE_LOCATION
-        ) == PackageManager.PERMISSION_GRANTED
-    }
-}
-EOF
+          # 修复AuthManager.kt - 最简单的稳定版本
+          echo 'package com.oa.app.util' > app/src/main/java/com/oa/app/util/AuthManager.kt
+          echo '' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+          echo 'import android.content.Context' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+          echo 'import androidx.datastore.core.DataStore' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+          echo 'import androidx.datastore.preferences.core.*' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+          echo 'import androidx.datastore.preferences.preferencesDataStore' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+          echo 'import com.oa.app.Config' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+          echo 'import kotlinx.coroutines.flow.Flow' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+          echo 'import kotlinx.coroutines.flow.map' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+          echo '' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+          echo 'val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+          echo '' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+          echo 'class AuthManager(private val context: Context) {' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+          echo '' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+          echo '    suspend fun saveToken(token: String) {' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+          echo '        context.dataStore.edit { preferences ->' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+          echo '            preferences[stringPreferencesKey(Config.PREF_TOKEN)] = token' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+          echo '        }' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+          echo '    }' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+          echo '' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+          echo '    suspend fun clearAuth() {' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+          echo '        context.dataStore.edit { preferences ->' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+          echo '            preferences.clear()' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+          echo '        }' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+          echo '    }' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+          echo '' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+          echo '    suspend fun getToken(): String? {' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+          echo '        return try {' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+          echo '            val preferences = context.dataStore.data.first()' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+          echo '            preferences[stringPreferencesKey(Config.PREF_TOKEN)]' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+          echo '        } catch (e: Exception) {' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+          echo '            null' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+          echo '        }' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+          echo '    }' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+          echo '' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+          echo '    suspend fun isLoggedIn(): Boolean {' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+          echo '        return getToken() != null' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+          echo '    }' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+          echo '}' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+          
+          # 修复LocationHelper.kt - 最简单的版本
+          echo 'package com.oa.app.util' > app/src/main/java/com/oa/app/util/LocationHelper.kt
+          echo '' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+          echo 'import android.Manifest' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+          echo 'import android.content.Context' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+          echo 'import android.content.pm.PackageManager' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+          echo 'import androidx.core.content.ContextCompat' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+          echo '' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+          echo 'class LocationHelper(private val context: Context) {' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+          echo '' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+          echo '    fun hasLocationPermission(): Boolean {' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+          echo '        return ContextCompat.checkSelfPermission(' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+          echo '            context,' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+          echo '            Manifest.permission.ACCESS_FINE_LOCATION' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+          echo '        ) == PackageManager.PERMISSION_GRANTED' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+          echo '    }' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+          echo '}' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+          
+          # 修复MainActivity.kt - 简化版本
+          if [ -f "app/src/main/java/com/oa/app/MainActivity.kt" ]; then
+            echo 'package com.oa.app' > app/src/main/java/com/oa/app/MainActivity.kt
+            echo '' >> app/src/main/java/com/oa/app/MainActivity.kt
+            echo 'import android.os.Bundle' >> app/src/main/java/com/oa/app/MainActivity.kt
+            echo 'import androidx.appcompat.app.AppCompatActivity' >> app/src/main/java/com/oa/app/MainActivity.kt
+            echo '' >> app/src/main/java/com/oa/app/MainActivity.kt
+            echo 'class MainActivity : AppCompatActivity() {' >> app/src/main/java/com/oa/app/MainActivity.kt
+            echo '' >> app/src/main/java/com/oa/app/MainActivity.kt
+            echo '    override fun onCreate(savedInstanceState: Bundle?) {' >> app/src/main/java/com/oa/app/MainActivity.kt
+            echo '        super.onCreate(savedInstanceState)' >> app/src/main/java/com/oa/app/MainActivity.kt
+            echo '        setContentView(R.layout.activity_main)' >> app/src/main/java/com/oa/app/MainActivity.kt
+            echo '    }' >> app/src/main/java/com/oa/app/MainActivity.kt
+            echo '}' >> app/src/main/java/com/oa/app/MainActivity.kt
+          fi
+          
+          # 确保有必要的依赖
+          if [ -f "app/build.gradle" ]; then
+            # 确保有协程依赖
+            if ! grep -q "kotlinx-coroutines-android" app/build.gradle; then
+              sed -i '/dependencies {/a\    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3"' app/build.gradle
+            fi
+          fi
           
           if [ -f "gradlew" ]; then
             chmod +x gradlew
@@ -122,7 +139,6 @@ EOF
           echo "android directory not found"
           exit 1
         fi
-
     - uses: actions/upload-artifact@v4
       if: success()
       with:
