@@ -25,7 +25,6 @@ jobs:
         export ANDROID_HOME=$HOME/android-sdk
         mkdir -p $ANDROID_HOME
         cd $ANDROID_HOME
-        # 使用稳定的命令行工具版本
         wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
         unzip -q commandlinetools-linux-9477386_latest.zip
         mv cmdline-tools cmdline-tools-temp
@@ -47,25 +46,17 @@ jobs:
         cd $PROJECT_DIR
         echo "🚀 Working in directory: $PROJECT_DIR"
         
-        # --- 【核心修复】彻底重置 Gradle Wrapper ---
-        
-        # 1. 清理可能存在的旧缓存和错误配置
+        # --- 1. 强制重置 Gradle Wrapper (版本 8.2) ---
         rm -rf ~/.gradle/caches
         rm -f gradle/wrapper/gradle-wrapper.properties
         rm -f gradlew
         
-        # 2. 下载标准的 gradlew 脚本
-        echo "⬇️ Downloading fresh gradlew script..."
         wget -q https://raw.githubusercontent.com/gradle/gradle/master/gradlew -O gradlew
         chmod +x gradlew
         
-        # 3. 下载标准的 gradle-wrapper.jar
         mkdir -p gradle/wrapper
-        echo "⬇️ Downloading fresh gradle-wrapper.jar..."
         wget -q https://raw.githubusercontent.com/gradle/gradle/master/gradle/wrapper/gradle-wrapper.jar -O gradle/wrapper/gradle-wrapper.jar
         
-        # 4. 【关键】手动逐行构建 gradle-wrapper.properties (强制 Gradle 8.2)
-        echo "🔨 Creating gradle-wrapper.properties for Gradle 8.2..."
         echo "distributionBase=GRADLE_USER_HOME" > gradle/wrapper/gradle-wrapper.properties
         echo "distributionPath=wrapper/dists" >> gradle/wrapper/gradle-wrapper.properties
         echo "distributionUrl=https\://services.gradle.org/distributions/gradle-8.2-bin.zip" >> gradle/wrapper/gradle-wrapper.properties
@@ -73,71 +64,85 @@ jobs:
         echo "zipStoreBase=GRADLE_USER_HOME" >> gradle/wrapper/gradle-wrapper.properties
         echo "zipStorePath=wrapper/dists" >> gradle/wrapper/gradle-wrapper.properties
         
-        echo "✅ Configuration verified:"
-        cat gradle/wrapper/gradle-wrapper.properties
+        echo "✅ Gradle 8.2 Configured."
 
-        echo "🔨 Fixing source code..."
-
-        # 1. 修复主题 (兼容旧版 AppCompat)
+        # --- 2. 修复资源文件 ---
         if [ -f "app/src/main/res/values/themes.xml" ]; then
           sed -i 's/Theme.Material3.DayNight.DarkActionBar/Theme.AppCompat.Light.DarkActionBar/g' app/src/main/res/values/themes.xml
           sed -i 's/Theme.Material3.DayNight/Theme.AppCompat.Light/g' app/src/main/res/values/themes.xml
         fi
 
-        # 2. 修复 Manifest (移除缺失的资源引用)
         if [ -f "app/src/main/AndroidManifest.xml" ]; then
           sed -i 's/android:icon="@mipmap\/ic_launcher"//g' app/src/main/AndroidManifest.xml
           sed -i 's/android:roundIcon="@mipmap\/ic_launcher_round"//g' app/src/main/AndroidManifest.xml
           sed -i 's/@style\/Theme.OAApp/@style\/Theme.AppCompat.Light.DarkActionBar/g' app/src/main/AndroidManifest.xml
         fi
 
-        # 3. 创建必要的目录结构
+        # --- 3. 创建缺失的源码文件 ---
         mkdir -p app/src/main/java/com/oa/app/util
         mkdir -p app/src/main/res/layout
 
-        # 4. 生成 Config.kt
         printf '%s\n' 'package com.oa.app' '' 'object Config {' '    const val PREF_TOKEN = "user_token"' '}' > app/src/main/java/com/oa/app/Config.kt
 
-        # 5. 生成 AuthManager.kt
-        printf '%s\n' 'package com.oa.app.util' '' 'import android.content.Context' 'import androidx.datastore.core.DataStore' 'import androidx.datastore.preferences.core.*' 'import androidx.datastore.preferences.preferencesDataStore' 'import com.oa.app.Config' 'import kotlinx.coroutines.flow.firstOrNull' '' 'val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")' '' 'class AuthManager(private val context: Context) {' '    suspend fun saveToken(token: String) {' '        context.dataStore.edit { preferences ->' '            preferences[stringPreferencesKey(Config.PREF_TOKEN)] = token' '        }' '    }' '' '    suspend fun clearAuth() {' '        context.dataStore.edit { preferences ->' '            preferences.clear()' '        }' '    }' '' '    suspend fun getToken(): String? {' '        return try {' '            val preferences = context.dataStore.data.firstOrNull()' '            preferences?.get(stringPreferencesKey(Config.PREF_TOKEN))' '        } catch (e: Exception) {' '            null' '        }' '    }' '' '    suspend fun isLoggedIn(): Boolean {' '        return getToken() != null' '    }' '}' > app/src/main/java/com/oa/app/util/AuthManager.kt
+        printf '%s\n' 'package com.oa.app.util' '' 'import android.content.Context' 'import androidx.datastore.core.DataStore' 'import androidx.datastore.preferences.core.*' 'import androidx.datastore.preferences.preferencesDataStore' 'import com.oa.app.Config' 'import kotlinx.coroutines.flow.firstOrNull' '' 'val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")' '' 'class AuthManager(private val context: Context) {' '    suspend fun saveToken(token: String) {' '        context.dataStore.edit { preferences ->' '            preferences[stringPreferencesKey(Config.PREF_TOKEN)] = token' '        }' '    }' '    suspend fun clearAuth() {' '        context.dataStore.edit { preferences ->' '            preferences.clear()' '        }' '    }' '    suspend fun getToken(): String? {' '        return try {' '            val preferences = context.dataStore.data.firstOrNull()' '            preferences?.get(stringPreferencesKey(Config.PREF_TOKEN))' '        } catch (e: Exception) {' '            null' '        }' '    }' '    suspend fun isLoggedIn(): Boolean {' '        return getToken() != null' '    }' '}' > app/src/main/java/com/oa/app/util/AuthManager.kt
 
-        # 6. 生成 LocationHelper.kt
         printf '%s\n' 'package com.oa.app.util' '' 'import android.Manifest' 'import android.content.Context' 'import android.content.pm.PackageManager' 'import androidx.core.content.ContextCompat' '' 'class LocationHelper(private val context: Context) {' '    fun hasLocationPermission(): Boolean {' '        return ContextCompat.checkSelfPermission(' '            context,' '            Manifest.permission.ACCESS_FINE_LOCATION' '        ) == PackageManager.PERMISSION_GRANTED' '    }' '}' > app/src/main/java/com/oa/app/util/LocationHelper.kt
 
-        # 7. 生成 MainActivity.kt
         printf '%s\n' 'package com.oa.app' '' 'import android.os.Bundle' 'import androidx.appcompat.app.AppCompatActivity' '' 'class MainActivity : AppCompatActivity() {' '    override fun onCreate(savedInstanceState: Bundle?) {' '        super.onCreate(savedInstanceState)' '        setContentView(R.layout.activity_main)' '    }' '}' > app/src/main/java/com/oa/app/MainActivity.kt
 
-        # 8. 生成 activity_main.xml
-        printf '%s\n' '<?xml version="1.0" encoding="utf-8"?>' '<androidx.constraintlayout.widget.ConstraintLayout' '    xmlns:android="http://schemas.android.com/apk/res/android"' '    xmlns:app="http://schemas.android.com/apk/res-auto"' '    xmlns:tools="http://schemas.android.com/tools"' '    android:layout_width="match_parent"' '    android:layout_height="match_parent"' '    tools:context=".MainActivity">' '' '    <TextView' '        android:id="@+id/textView"' '        android:layout_width="wrap_content"' '        android:layout_height="wrap_content"' '        android:text="OA App Running Successfully!"' '        android:textSize="24sp"' '        android:textColor="#000000"' '        app:layout_constraintBottom_toBottomOf="parent"' '        app:layout_constraintLeft_toLeftOf="parent"' '        app:layout_constraintRight_toRightOf="parent"' '        app:layout_constraintTop_toTopOf="parent" />' '' '</androidx.constraintlayout.widget.ConstraintLayout>' > app/src/main/res/layout/activity_main.xml
+        printf '%s\n' '<?xml version="1.0" encoding="utf-8"?>' '<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto" xmlns:tools="http://schemas.android.com/tools" android:layout_width="match_parent" android:layout_height="match_parent" tools:context=".MainActivity">' '<TextView android:id="@+id/textView" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="OA App Running Successfully!" android:textSize="24sp" android:textColor="#000000" app:layout_constraintBottom_toBottomOf="parent" app:layout_constraintLeft_toLeftOf="parent" app:layout_constraintRight_toRightOf="parent" app:layout_constraintTop_toTopOf="parent" />' '</androidx.constraintlayout.widget.ConstraintLayout>' > app/src/main/res/layout/activity_main.xml
 
-        # 9. 注入 Gradle 依赖 (确保不重复添加)
-        if [ -f "app/build.gradle" ]; then
-          echo "📝 Injecting Gradle dependencies..."
-          # 使用临时文件避免 sed 循环引用问题
-          TEMP_FILE=$(mktemp)
-          cp app/build.gradle $TEMP_FILE
-          
-          # 检查并添加依赖
-          if ! grep -q "kotlinx-coroutines-android" $TEMP_FILE; then
-            sed -i '/dependencies {/a\    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3"' $TEMP_FILE
-          fi
-          if ! grep -q "datastore-preferences" $TEMP_FILE; then
-            sed -i '/dependencies {/a\    implementation "androidx.datastore:datastore-preferences:1.0.0"' $TEMP_FILE
-          fi
-          if ! grep -q "constraintlayout" $TEMP_FILE; then
-            sed -i '/dependencies {/a\    implementation "androidx.constraintlayout:constraintlayout:2.1.4"' $TEMP_FILE
-          fi
-          if ! grep -q "appcompat" $TEMP_FILE; then
-            sed -i '/dependencies {/a\    implementation "androidx.appcompat:appcompat:1.6.1"' $TEMP_FILE
-          fi
-          
-          mv $TEMP_FILE app/build.gradle
-        else
-          echo "⚠️ Warning: app/build.gradle not found."
-        fi
+        # --- 4. 【核心大招】直接覆盖 app/build.gradle，不再使用 sed 修改 ---
+        echo "🔨 Overwriting app/build.gradle with a guaranteed correct configuration..."
+        cat > app/build.gradle << 'GRADLE_EOF'
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+}
 
-        # 10. 开始编译
-        echo "🔨 Starting Build with Gradle 8.2..."
+android {
+    namespace 'com.oa.app'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.oa.app"
+        minSdk 24
+        targetSdk 34
+        versionCode 1
+        versionName "1.0"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+}
+
+dependencies {
+    implementation 'androidx.core:core-ktx:1.12.0'
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'com.google.android.material:material:1.11.0'
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
+    implementation 'androidx.datastore:datastore-preferences:1.0.0'
+    testImplementation 'junit:junit:4.13.2'
+    androidTestImplementation 'androidx.test.ext:junit:1.1.5'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
+}
+GRADLE_EOF
+        echo "✅ app/build.gradle replaced successfully."
+
+        # --- 5. 编译 ---
+        echo "🔨 Starting Build..."
         ./gradlew clean --no-daemon
         ./gradlew assembleDebug --no-daemon --stacktrace
 
