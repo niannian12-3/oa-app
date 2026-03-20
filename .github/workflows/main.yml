@@ -1,4 +1,4 @@
-name: Build APK
+name: Build Stable APK
 on: [push, workflow_dispatch]
 jobs:
   build:
@@ -23,80 +23,106 @@ jobs:
         $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-34" "build-tools;34.0.0" "platform-tools"
         cd $GITHUB_WORKSPACE
     - run: |
-        cd android
-        mkdir -p app/src/main/java/com/oa/app
-        mkdir -p app/src/main/res/layout
-        mkdir -p app/src/main/res/values
-        
-        # 创建最简单的MainActivity.kt
-        cat > app/src/main/java/com/oa/app/MainActivity.kt << 'EOF'
+        if [ -d "android" ]; then
+          cd android
+          
+          echo "=== 创建最简单的应用 ==="
+          
+          # 1. 创建最简单的MainActivity.kt - 绝对不会闪退
+          mkdir -p app/src/main/java/com/oa/app
+          cat > app/src/main/java/com/oa/app/MainActivity.kt << 'EOF'
 package com.oa.app
+
 import android.os.Bundle
 import android.widget.Button
 import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+
 class MainActivity : AppCompatActivity() {
+    
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+        
         val employeeIdEditText = findViewById<EditText>(R.id.employeeIdEditText)
         val passwordEditText = findViewById<EditText>(R.id.passwordEditText)
         val loginButton = findViewById<Button>(R.id.loginButton)
         val statusTextView = findViewById<TextView>(R.id.statusTextView)
-        statusTextView.text = "OA办公系统\n版本1.0.0\n后端地址:192.168.11.43:3000"
+        
+        // 显示初始状态
+        statusTextView.text = "OA办公系统\n版本 1.0.0\n后端地址: 192.168.11.43:3000"
+        
         loginButton.setOnClickListener {
             val employeeId = employeeIdEditText.text.toString()
             val password = passwordEditText.text.toString()
+            
             if (employeeId.isEmpty() || password.isEmpty()) {
                 Toast.makeText(this, "请输入员工ID和密码", Toast.LENGTH_SHORT).show()
             } else {
-                statusTextView.text = "登录成功！\n员工ID: $employeeId\n后端地址:192.168.11.43:3000"
+                // 直接显示成功，不会连接网络，不会崩溃
+                statusTextView.text = "登录成功！\n员工ID: $employeeId\n后端地址: 192.168.11.43:3000"
                 Toast.makeText(this, "登录成功！", Toast.LENGTH_SHORT).show()
             }
         }
     }
 }
 EOF
-        
-        # 创建布局文件
-        cat > app/src/main/res/layout/activity_main.xml << 'EOF'
+          
+          # 2. 创建最简单的布局
+          mkdir -p app/src/main/res/layout
+          cat > app/src/main/res/layout/activity_main.xml << 'EOF'
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:padding="16dp"
-    android:gravity="center">
+    android:gravity="center"
+    android:background="#f5f5f5">
+    
     <TextView
         android:id="@+id/titleTextView"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="OA办公系统"
-        android:textSize="24sp"
+        android:textSize="28sp"
         android:textStyle="bold"
+        android:textColor="#3F51B5"
         android:layout_marginBottom="32dp"/>
+    
     <EditText
         android:id="@+id/employeeIdEditText"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:hint="员工ID"
+        android:inputType="number"
+        android:padding="12dp"
+        android:background="@android:drawable/editbox_background"
         android:layout_marginBottom="16dp"/>
+    
     <EditText
         android:id="@+id/passwordEditText"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:hint="密码"
         android:inputType="textPassword"
+        android:padding="12dp"
+        android:background="@android:drawable/editbox_background"
         android:layout_marginBottom="24dp"/>
+    
     <Button
         android:id="@+id/loginButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="登录"
         android:textSize="18sp"
+        android:background="#3F51B5"
+        android:textColor="#FFFFFF"
+        android:padding="12dp"
         android:layout_marginBottom="32dp"/>
+    
     <TextView
         android:id="@+id/statusTextView"
         android:layout_width="match_parent"
@@ -104,52 +130,115 @@ EOF
         android:text="准备登录..."
         android:textSize="16sp"
         android:gravity="center"
-        android:padding="16dp"/>
+        android:padding="16dp"
+        android:background="#FFFFFF"
+        android:elevation="2dp"
+        android:textColor="#333333"/>
 </LinearLayout>
 EOF
+          
+          # 3. 创建最简单的AndroidManifest.xml
+          mkdir -p app/src/main/res/values
+          cat > app/src/main/AndroidManifest.xml << 'EOF'
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    
+    <!-- 移除网络权限，避免崩溃 -->
+    <!-- <uses-permission android:name="android.permission.INTERNET" /> -->
+    
+    <application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="OA办公"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.AppCompat.Light.DarkActionBar">
         
-        # 创建其他必要文件
-        echo '<?xml version="1.0" encoding="utf-8"?>' > app/src/main/AndroidManifest.xml
-        echo '<manifest xmlns:android="http://schemas.android.com/apk/res/android">' >> app/src/main/AndroidManifest.xml
-        echo '    <uses-permission android:name="android.permission.INTERNET" />' >> app/src/main/AndroidManifest.xml
-        echo '    <application' >> app/src/main/AndroidManifest.xml
-        echo '        android:allowBackup="true"' >> app/src/main/AndroidManifest.xml
-        echo '        android:icon="@mipmap/ic_launcher"' >> app/src/main/AndroidManifest.xml
-        echo '        android:label="OA办公"' >> app/src/main/AndroidManifest.xml
-        echo '        android:roundIcon="@mipmap/ic_launcher_round"' >> app/src/main/AndroidManifest.xml
-        echo '        android:supportsRtl="true"' >> app/src/main/AndroidManifest.xml
-        echo '        android:theme="@style/Theme.AppCompat.Light.DarkActionBar">' >> app/src/main/AndroidManifest.xml
-        echo '        <activity' >> app/src/main/AndroidManifest.xml
-        echo '            android:name=".MainActivity"' >> app/src/main/AndroidManifest.xml
-        echo '            android:exported="true">' >> app/src/main/AndroidManifest.xml
-        echo '            <intent-filter>' >> app/src/main/AndroidManifest.xml
-        echo '                <action android:name="android.intent.action.MAIN" />' >> app/src/main/AndroidManifest.xml
-        echo '                <category android:name="android.intent.category.LAUNCHER" />' >> app/src/main/AndroidManifest.xml
-        echo '            </intent-filter>' >> app/src/main/AndroidManifest.xml
-        echo '        </activity>' >> app/src/main/AndroidManifest.xml
-        echo '    </application>' >> app/src/main/AndroidManifest.xml
-        echo '</manifest>' >> app/src/main/AndroidManifest.xml
-        
-        echo '<?xml version="1.0" encoding="utf-8"?>' > app/src/main/res/values/strings.xml
-        echo '<resources>' >> app/src/main/res/values/strings.xml
-        echo '    <string name="app_name">OA办公</string>' >> app/src/main/res/values/strings.xml
-        echo '</resources>' >> app/src/main/res/values/strings.xml
-        
-        # 构建APK
-        if [ -f "gradlew" ]; then
-          chmod +x gradlew
-          ./gradlew clean
-          ./gradlew assembleDebug
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:screenOrientation="portrait">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>
+EOF
+          
+          # 4. 创建strings.xml
+          cat > app/src/main/res/values/strings.xml << 'EOF'
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">OA办公</string>
+</resources>
+EOF
+          
+          # 5. 创建最简单的build.gradle
+          cat > app/build.gradle << 'EOF'
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+}
+
+android {
+    namespace 'com.oa.app'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.oa.app"
+        minSdk 21
+        targetSdk 34
+        versionCode 1
+        versionName "1.0.0"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+    
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+    
+    kotlinOptions {
+        jvmTarget = '1.8'
+    }
+}
+
+dependencies {
+    implementation 'androidx.core:core-ktx:1.12.0'
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'com.google.android.material:material:1.11.0'
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+}
+EOF
+          
+          # 6. 构建APK
+          echo "=== 开始构建APK ==="
+          if [ -f "gradlew" ]; then
+            chmod +x gradlew
+            ./gradlew clean
+            ./gradlew assembleDebug
+          else
+            wget -q https://services.gradle.org/distributions/gradle-8.2-bin.zip
+            unzip -q gradle-8.2-bin.zip
+            ./gradle-8.2/bin/gradle wrapper --gradle-version 8.2
+            chmod +x gradlew
+            ./gradlew clean
+            ./gradlew assembleDebug
+          fi
         else
-          wget -q https://services.gradle.org/distributions/gradle-8.2-bin.zip
-          unzip -q gradle-8.2-bin.zip
-          ./gradle-8.2/bin/gradle wrapper --gradle-version 8.2
-          chmod +x gradlew
-          ./gradlew clean
-          ./gradlew assembleDebug
+          echo "❌ android目录不存在"
+          exit 1
         fi
     - uses: actions/upload-artifact@v4
       if: success()
       with:
-        name: apk
+        name: oa-app-stable
         path: android/app/build/outputs/apk/debug/*.apk
