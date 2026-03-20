@@ -128,7 +128,7 @@ EOF
           if [ -f "app/build.gradle" ]; then
             echo "添加coroutines-play-services依赖..."
             if ! grep -q "kotlinx-coroutines-play-services" app/build.gradle; then
-              sed -i '/kotlinx-coroutines-android/a\    implementation \"org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3\"' app/build.gradle
+              sed -i '/kotlinx-coroutines-android/a\    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3"' app/build.gradle
             fi
           fi
           
@@ -158,4 +158,3 @@ EOF
       with:
         name: apk
         path: android/app/build/outputs/apk/debug/*.apk
-  
