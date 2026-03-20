@@ -92,8 +92,8 @@ jobs:
 
         printf '%s\n' '<?xml version="1.0" encoding="utf-8"?>' '<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto" xmlns:tools="http://schemas.android.com/tools" android:layout_width="match_parent" android:layout_height="match_parent" tools:context=".MainActivity">' '<TextView android:id="@+id/textView" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="OA App Running Successfully!" android:textSize="24sp" android:textColor="#000000" app:layout_constraintBottom_toBottomOf="parent" app:layout_constraintLeft_toLeftOf="parent" app:layout_constraintRight_toRightOf="parent" app:layout_constraintTop_toTopOf="parent" />' '</androidx.constraintlayout.widget.ConstraintLayout>' > app/src/main/res/layout/activity_main.xml
 
-        # --- 4. 【核心大招】使用 printf 生成 build.gradle (绝对不使用 <<) ---
-        echo "🔨 Overwriting app/build.gradle with printf..."
+        # --- 4. 【核心修复】生成 build.gradle 并解决 .so 库冲突 ---
+        echo "🔨 Overwriting app/build.gradle with conflict resolution..."
         printf '%s\n' \
         "plugins {" \
         "    id 'com.android.application'" \
@@ -125,6 +125,12 @@ jobs:
         "    kotlinOptions {" \
         "        jvmTarget = '17'" \
         "    }" \
+        "    packagingOptions {" \
+        "        pickFirst 'lib/x86/libc++_shared.so'" \
+        "        pickFirst 'lib/x86_64/libc++_shared.so'" \
+        "        pickFirst 'lib/armeabi-v7a/libc++_shared.so'" \
+        "        pickFirst 'lib/arm64-v8a/libc++_shared.so'" \
+        "    }" \
         "}" \
         "" \
         "dependencies {" \
@@ -140,10 +146,9 @@ jobs:
         "}" > app/build.gradle
         
         echo "✅ app/build.gradle replaced successfully."
-        cat app/build.gradle
 
         # --- 5. 编译 ---
-        echo "🔨 Starting Build..."
+        echo "🔨 Starting Build (with native lib conflict fix)..."
         ./gradlew clean --no-daemon
         ./gradlew assembleDebug --no-daemon --stacktrace
 
