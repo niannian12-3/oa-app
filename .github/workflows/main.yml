@@ -22,6 +22,127 @@ jobs:
         yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
         $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-34" "build-tools;34.0.0" "platform-tools"
         cd $GITHUB_WORKSPACE
+    - name: Fix project issues
+      run: |
+        if [ -d "android" ]; then
+          cd android
+          
+          # 修复主题问题 - 将Material3改为AppCompat
+          if [ -f "app/src/main/res/values/themes.xml" ]; then
+            echo "修复主题文件..."
+            sed -i 's/Theme\.Material3\.DayNight\.DarkActionBar/Theme.AppCompat.Light.DarkActionBar/g' app/src/main/res/values/themes.xml
+          fi
+          
+          # 修复AuthManager.kt
+          if [ -f "app/src/main/java/com/oa/app/util/AuthManager.kt" ]; then
+            echo "修复AuthManager.kt..."
+            sed -i 's/\.firstOrNull()/.first()/g' app/src/main/java/com/oa/app/util/AuthManager.kt
+          fi
+          
+          # 修复LocationHelper.kt - 简化版
+          if [ -f "app/src/main/java/com/oa/app/util/LocationHelper.kt" ]; then
+            echo "修复LocationHelper.kt..."
+            cat > app/src/main/java/com/oa/app/util/LocationHelper.kt << 'EOF'
+package com.oa.app.util
+
+import android.Manifest
+import android.content.Context
+import android.content.pm.PackageManager
+import android.location.Address
+import android.location.Geocoder
+import androidx.core.content.ContextCompat
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationServices
+import kotlinx.coroutines.suspendCancellableCoroutine
+import java.util.Locale
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
+
+class LocationHelper(private val context: Context) {
+    
+    private val fusedLocationClient: FusedLocationProviderClient = 
+        LocationServices.getFusedLocationProviderClient(context)
+    
+    suspend fun getCurrentLocation(): LocationData? {
+        if (ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            return null
+        }
+        
+        return try {
+            val task = fusedLocationClient.lastLocation
+            val location = suspendCancellableCoroutine { continuation ->
+                task.addOnSuccessListener { location ->
+                    continuation.resume(location)
+                }
+                .addOnFailureListener { exception ->
+                    continuation.resumeWithException(exception)
+                }
+            }
+            
+            location?.let { loc ->
+                val address = getAddressFromLocation(loc.latitude, loc.longitude)
+                LocationData(
+                    latitude = loc.latitude,
+                    longitude = loc.longitude,
+                    address = address,
+                    accuracy = loc.accuracy
+                )
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+    
+    private fun getAddressFromLocation(latitude: Double, longitude: Double): String? {
+        return try {
+            val geocoder = Geocoder(context, Locale.getDefault())
+            val addresses: List<Address>? = geocoder.getFromLocation(latitude, longitude, 1)
+            addresses?.firstOrNull()?.let { address ->
+                val addressParts = mutableListOf<String>()
+                for (i in 0 until address.maxAddressLineIndex) {
+                    address.getAddressLine(i)?.let { line ->
+                        addressParts.add(line)
+                    }
+                }
+                addressParts.joinToString(", ")
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
+    
+    data class LocationData(
+        val latitude: Double,
+        val longitude: Double,
+        val address: String?,
+        val accuracy: Float
+    )
+}
+EOF
+          fi
+          
+          # 确保有必要的依赖
+          if [ -f "app/build.gradle" ]; then
+            echo "检查依赖..."
+            # 确保有AppCompat
+            if ! grep -q "androidx.appcompat:appcompat" app/build.gradle; then
+              echo "添加AppCompat依赖..."
+              sed -i '/dependencies {/a\    implementation "androidx.appcompat:appcompat:1.6.1"' app/build.gradle
+            fi
+            # 确保有coroutines-play-services
+            if ! grep -q "kotlinx-coroutines-play-services" app/build.gradle; then
+              echo "添加coroutines-play-services依赖..."
+              sed -i '/kotlinx-coroutines-android/a\    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3"' app/build.gradle
+            fi
+          fi
+          
+          echo "修复完成"
+        fi
     - run: |
         if [ -d "android" ]; then
           cd android
