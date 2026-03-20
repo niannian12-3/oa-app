@@ -5,164 +5,238 @@ jobs:
     runs-on: ubuntu-latest
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
     steps:
     - uses: actions/checkout@v4
+
     - run: |
         sudo apt update
+
         sudo apt install -y openjdk-17-jdk wget unzip
+
         mkdir -p ~/android-sdk
+
         cd ~/android-sdk
+
         wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
+
         unzip -q commandlinetools-linux-9477386_latest.zip
+
         mv cmdline-tools cmdline-tools-temp
+
         mkdir -p cmdline-tools
+
         mv cmdline-tools-temp cmdline-tools/latest
+
         export ANDROID_HOME=~/android-sdk
+
         export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin
+
         yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
+
+
+
         $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-34" "build-tools;34.0.0" "platform-tools"
+
         cd $GITHUB_WORKSPACE
+
+
+
     - run: |
         if [ -d "android" ]; then
+
           cd android
-          
+
+
+
           # 修复主题文件 - 将Material3改为AppCompat
+
           if [ -f "app/src/main/res/values/themes.xml" ]; then
+
             sed -i 's/Theme\.Material3\.DayNight\.DarkActionBar/Theme.AppCompat.Light.DarkActionBar/g' app/src/main/res/values/themes.xml
+
           fi
-          
+
+
+
           # 修复AndroidManifest.xml - 移除图标引用
+
           if [ -f "app/src/main/AndroidManifest.xml" ]; then
+
             sed -i 's/android:icon="@mipmap\/ic_launcher"//g' app/src/main/AndroidManifest.xml
+
             sed -i 's/android:roundIcon="@mipmap\/ic_launcher_round"//g' app/src/main/AndroidManifest.xml
+
           fi
-          
-          # 修复AuthManager.kt - 使用正确的方法
+
+
+
+          # 修复AuthManager.kt - 使用简单的方法
+
           if [ -f "app/src/main/java/com/oa/app/util/AuthManager.kt" ]; then
-            cat > app/src/main/java/com/oa/app/util/AuthManager.kt << 'EOF'
-package com.oa.app.util
 
-import android.content.Context
-import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.core.*
-import androidx.datastore.preferences.preferencesDataStore
-import com.oa.app.Config
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.first
+            echo 'package com.oa.app.util' > app/src/main/java/com/oa/app/util/AuthManager.kt
 
-val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
+            echo '' >> app/src/main/java/com/oa/app/util/AuthManager.kt
 
-class AuthManager(private val context: Context) {
-    
-    val tokenFlow: Flow<String?> = context.dataStore.data.map { preferences ->
-        preferences[stringPreferencesKey(Config.PREF_TOKEN)]
-    }
-    
-    suspend fun saveToken(token: String) {
-        context.dataStore.edit { preferences ->
-            preferences[stringPreferencesKey(Config.PREF_TOKEN)] = token
-        }
-    }
-    
-    suspend fun saveUserInfo(employeeId: String, name: String) {
-        context.dataStore.edit { preferences ->
-            preferences[stringPreferencesKey(Config.PREF_EMPLOYEE_ID)] = employeeId
-            preferences[stringPreferencesKey(Config.PREF_NAME)] = name
-        }
-    }
-    
-    suspend fun clearAuth() {
-        context.dataStore.edit { preferences ->
-            preferences.clear()
-        }
-    }
-    
-    suspend fun getToken(): String? {
-        return try {
-            context.dataStore.data.map { preferences ->
-                preferences[stringPreferencesKey(Config.PREF_TOKEN)]
-            }.first()
-        } catch (e: Exception) {
-            null
-        }
-    }
-    
-    suspend fun isLoggedIn(): Boolean {
-        return getToken() != null
-    }
-}
-EOF
+            echo 'import android.content.Context' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+
+            echo 'import androidx.datastore.core.DataStore' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+
+            echo 'import androidx.datastore.preferences.core.*' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+
+            echo 'import androidx.datastore.preferences.preferencesDataStore' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+
+            echo 'import com.oa.app.Config' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+
+            echo 'import kotlinx.coroutines.flow.Flow' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+
+            echo 'import kotlinx.coroutines.flow.map' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+
+            echo '' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+
+            echo 'val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+
+            echo '' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+
+            echo 'class AuthManager(private val context: Context) {' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+
+            echo '' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+
+            echo '    suspend fun getToken(): String? {' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+
+            echo '        return try {' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+
+            echo '            context.dataStore.data.map { preferences ->' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+
+            echo '                preferences[stringPreferencesKey(Config.PREF_TOKEN)]' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+
+            echo '            }.first()' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+
+            echo '        } catch (e: Exception) {' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+
+            echo '            null' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+
+            echo '        }' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+
+            echo '    }' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+
+            echo '' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+
+            echo '    suspend fun isLoggedIn(): Boolean {' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+
+            echo '        return getToken() != null' >> app/src/main/java/com/oa/apputil/AuthManager.kt
+
+            echo '    }' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+
+            echo '}' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+
           fi
-          
-          # 修复LocationHelper.kt
+
+
+
+          # 修复LocationHelper.kt - 最简单的版本
+
           if [ -f "app/src/main/java/com/oa/app/util/LocationHelper.kt" ]; then
-            cat > app/src/main/java/com/oa/app/util/LocationHelper.kt << 'EOF'
-package com.oa.app.util
 
-import android.Manifest
-import android.content.Context
-import android.content.pm.PackageManager
-import android.location.Address
-import android.location.Geocoder
-import androidx.core.content.ContextCompat
-import java.util.Locale
+            echo 'package com.oa.app.util' > app/src/main/java/com/oa/app/util/LocationHelper.kt
 
-class LocationHelper(private val context: Context) {
-    
-    fun hasLocationPermission(): Boolean {
-        return ContextCompat.checkSelfPermission(
-            context,
-            Manifest.permission.ACCESS_FINE_LOCATION
-        ) == PackageManager.PERMISSION_GRANTED
-    }
-    
-    fun getAddressFromLocation(latitude: Double, longitude: Double): String? {
-        return try {
-            val geocoder = Geocoder(context, Locale.getDefault())
-            val addresses: List<Address>? = geocoder.getFromLocation(latitude, longitude, 1)
-            addresses?.firstOrNull()?.let { address ->
-                val addressParts = mutableListOf<String>()
-                for (i in 0 until address.maxAddressLineIndex) {
-                    address.getAddressLine(i)?.let { line ->
-                        addressParts.add(line)
-                    }
-                }
-                addressParts.joinToString(", ")
-            }
-        } catch (e: Exception) {
-            null
-        }
-    }
-    
-    data class LocationData(
-        val latitude: Double,
-        val longitude: Double,
-        val address: String?,
-        val accuracy: Float
-    )
-}
-EOF
+            echo '' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+
+            echo 'import android.Manifest' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+
+            echo 'import android.content.Context' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+
+            echo 'import android.content.pm.PackageManager' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+
+            echo 'import androidx.core.content.ContextCompat' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+
+            echo '' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+
+            echo 'class LocationHelper(private val context: Context) {' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+
+            echo '' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+
+            echo '    fun hasLocationPermission(): Boolean {' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+
+            echo '        return ContextCompat.checkSelfPermission(' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+
+            echo '            context,' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+
+            echo '            Manifest.permission.ACCESS_FINE_LOCATION' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+
+            echo '        ) == PackageManager.PERMISSION_GRANTED' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+
+            echo '    }' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+
+            echo '}' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+
           fi
-          
+
+
+
           if [ -f "gradlew" ]; then
+
             chmod +x gradlew
+
             ./gradlew clean
+
+
+
             ./gradlew assembleDebug --stacktrace
+
+
+
           else
+
             wget -q https://services.gradle.org/distributions/gradle-8.2-bin.zip
+
+
+
             unzip -q gradle-8.2-bin.zip
+
+
+
             ./gradle-8.2/bin/gradle wrapper --gradle-version 8.2
+
+
+
             chmod +x gradlew
+
+
+
             ./gradlew clean
+
+
+
             ./gradlew assembleDebug --stacktrace
+
+
+
           fi
+
         else
+
           echo "android directory not found"
+
+
+
           exit 1
+
         fi
+
+
+
     - uses: actions/upload-artifact@v4
+
       if: success()
+
+
+
       with:
+
         name: apk
+
+
+
         path: android/app/build/outputs/apk/debug/*.apk
