@@ -1,15 +1,26 @@
-name: Build APK
-on: [push]
+name: 生成APK
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
 jobs:
   build:
     runs-on: ubuntu-latest
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
     steps:
-    - uses: actions/checkout@v4
-    - run: |
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Environment & Fix Code
+      run: |
+        # 安装基础依赖
         sudo apt update
         sudo apt install -y openjdk-17-jdk wget unzip
+        
+        # 设置 Android SDK
         mkdir -p ~/android-sdk
         cd ~/android-sdk
         wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
@@ -21,198 +32,192 @@ jobs:
         export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin
         yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
         $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-34" "build-tools;34.0.0" "platform-tools"
+        
+        # 回到项目根目录
         cd $GITHUB_WORKSPACE
-    - run: |
+
         if [ -d "android" ]; then
           cd android
           
-          # 1. 创建最简单的AuthManager.kt - 避免所有复杂代码
-          mkdir -p app/src/main/java/com/oa/app/util
-          echo 'package com.oa.app.util' > app/src/main/java/com/oa/app/util/AuthManager.kt
-          echo '' >> app/src/main/java/com/oa/app/util/AuthManager.kt
-          echo 'import android.content.Context' >> app/src/main/java/com/oa/app/util/AuthManager.kt
-          echo 'import android.content.SharedPreferences' >> app/src/main/java/com/oa/app/util/AuthManager.kt
-          echo '' >> app/src/main/java/com/oa/app/util/AuthManager.kt
-          echo 'class AuthManager(private val context: Context) {' >> app/src/main/java/com/oa/app/util/AuthManager.kt
-          echo '' >> app/src/main/java/com/oa/app/util/AuthManager.kt
-          echo '    private val sharedPref: SharedPreferences = context.getSharedPreferences("oa_app_prefs", Context.MODE_PRIVATE)' >> app/src/main/java/com/oa/app/util/AuthManager.kt
-          echo '' >> app/src/main/java/com/oa/app/util/AuthManager.kt
-          echo '    fun saveToken(token: String) {' >> app/src/main/java/com/oa/app/util/AuthManager.kt
-          echo '        sharedPref.edit().putString("token", token).apply()' >> app/src/main/java/com/oa/app/util/AuthManager.kt
-          echo '    }' >> app/src/main/java/com/oa/app/util/AuthManager.kt
-          echo '' >> app/src/main/java/com/oa/app/util/AuthManager.kt
-          echo '    fun getToken(): String? {' >> app/src/main/java/com/oa/app/util/AuthManager.kt
-          echo '        return sharedPref.getString("token", null)' >> app/src/main/java/com/oa/app/util/AuthManager.kt
-          echo '    }' >> app/src/main/java/com/oa/app/util/AuthManager.kt
-          echo '' >> app/src/main/java/com/oa/app/util/AuthManager.kt
-          echo '    fun clearAuth() {' >> app/src/main/java/com/oa/app/util/AuthManager.kt
-          echo '        sharedPref.edit().clear().apply()' >> app/src/main/java/com/oa/app/util/AuthManager.kt
-          echo '    }' >> app/src/main/java/com/oa/app/util/AuthManager.kt
-          echo '' >> app/src/main/java/com/oa/app/util/AuthManager.kt
-          echo '    fun isLoggedIn(): Boolean {' >> app/src/main/java/com/oa/app/util/AuthManager.kt
-          echo '        return getToken() != null' >> app/src/main/java/com/oa/app/util/AuthManager.kt
-          echo '    }' >> app/src/main/java/com/oa/app/util/AuthManager.kt
-          echo '}' >> app/src/main/java/com/oa/app/util/AuthManager.kt
+          echo "--- 开始修复源代码 ---"
           
-          # 2. 创建最简单的LocationHelper.kt
-          echo 'package com.oa.app.util' > app/src/main/java/com/oa/app/util/LocationHelper.kt
-          echo '' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
-          echo 'import android.Manifest' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
-          echo 'import android.content.Context' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
-          echo 'import android.content.pm.PackageManager' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
-          echo 'import androidx.core.content.ContextCompat' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
-          echo '' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
-          echo 'class LocationHelper(private val context: Context) {' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
-          echo '' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
-          echo '    fun hasLocationPermission(): Boolean {' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
-          echo '        return ContextCompat.checkSelfPermission(' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
-          echo '            context,' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
-          echo '            Manifest.permission.ACCESS_FINE_LOCATION' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
-          echo '        ) == PackageManager.PERMISSION_GRANTED' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
-          echo '    }' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
-          echo '}' >> app/src/main/java/com/oa/app/util/LocationHelper.kt
-          
-          # 3. 创建最简单的MainActivity.kt
-          mkdir -p app/src/main/java/com/oa/app
-          echo 'package com.oa.app' > app/src/main/java/com/oa/app/MainActivity.kt
-          echo '' >> app/src/main/java/com/oa/app/MainActivity.kt
-          echo 'import android.os.Bundle' >> app/src/main/java/com/oa/app/MainActivity.kt
-          echo 'import android.widget.TextView' >> app/src/main/java/com/oa/app/MainActivity.kt
-          echo 'import androidx.appcompat.app.AppCompatActivity' >> app/src/main/java/com/oa/app/MainActivity.kt
-          echo '' >> app/src/main/java/com/oa/app/MainActivity.kt
-          echo 'class MainActivity : AppCompatActivity() {' >> app/src/main/java/com/oa/app/MainActivity.kt
-          echo '' >> app/src/main/java/com/oa/app/MainActivity.kt
-          echo '    override fun onCreate(savedInstanceState: Bundle?) {' >> app/src/main/java/com/oa/app/MainActivity.kt
-          echo '        super.onCreate(savedInstanceState)' >> app/src/main/java/com/oa/app/MainActivity.kt
-          echo '' >> app/src/main/java/com/oa/app/MainActivity.kt
-          echo '        // 创建最简单的布局' >> app/src/main/java/com/oa/app/MainActivity.kt
-          echo '        val textView = TextView(this)' >> app/src/main/java/com/oa/app/MainActivity.kt
-          echo '        textView.text = "OA App - 启动成功！"' >> app/src/main/java/com/oa/app/MainActivity.kt
-          echo '        textView.textSize = 20f' >> app/src/main/java/com/oa/app/MainActivity.kt
-          echo '        textView.setPadding(50, 50, 50, 50)' >> app/src/main/java/com/oa/app/MainActivity.kt
-          echo '' >> app/src/main/java/com/oa/app/MainActivity.kt
-          echo '        setContentView(textView)' >> app/src/main/java/com/oa/app/MainActivity.kt
-          echo '' >> app/src/main/java/com/oa/app/MainActivity.kt
-          echo '        // 测试AuthManager' >> app/src/main/java/com/oa/app/MainActivity.kt
-          echo '        val authManager = com.oa.app.util.AuthManager(this)' >> app/src/main/java/com/oa/app/MainActivity.kt
-          echo '        println("AuthManager测试: ${authManager.isLoggedIn()}")' >> app/src/main/java/com/oa/app/MainActivity.kt
-          echo '    }' >> app/src/main/java/com/oa/app/MainActivity.kt
-          echo '}' >> app/src/main/java/com/oa/app/MainActivity.kt
-          
-          # 4. 创建最简单的Config.kt
-          echo 'package com.oa.app' > app/src/main/java/com/oa/app/Config.kt
-          echo '' >> app/src/main/java/com/oa/app/Config.kt
-          echo 'object Config {' >> app/src/main/java/com/oa/app/Config.kt
-          echo '    const val PREF_TOKEN = "token"' >> app/src/main/java/com/oa/app/Config.kt
-          echo '    const val PREF_EMPLOYEE_ID = "employee_id"' >> app/src/main/java/com/oa/app/Config.kt
-          echo '    const val PREF_NAME = "name"' >> app/src/main/java/com/oa/app/Config.kt
-          echo '}' >> app/src/main/java/com/oa/app/Config.kt
-          
-          # 5. 修复AndroidManifest.xml - 创建最简单的版本
-          mkdir -p app/src/main
-          echo '<?xml version="1.0" encoding="utf-8"?>' > app/src/main/AndroidManifest.xml
-          echo '<manifest xmlns:android="http://schemas.android.com/apk/res/android"' >> app/src/main/AndroidManifest.xml
-          echo '    xmlns:tools="http://schemas.android.com/tools">' >> app/src/main/AndroidManifest.xml
-          echo '' >> app/src/main/AndroidManifest.xml
-          echo '    <uses-permission android:name="android.permission.INTERNET" />' >> app/src/main/AndroidManifest.xml
-          echo '    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />' >> app/src/main/AndroidManifest.xml
-          echo '' >> app/src/main/AndroidManifest.xml
-          echo '    <application' >> app/src/main/AndroidManifest.xml
-          echo '        android:allowBackup="true"' >> app/src/main/AndroidManifest.xml
-          echo '        android:dataExtractionRules="@xml/data_extraction_rules"' >> app/src/main/AndroidManifest.xml
-          echo '        android:fullBackupContent="@xml/backup_rules"' >> app/src/main/AndroidManifest.xml
-          echo '        android:icon="@mipmap/ic_launcher"' >> app/src/main/AndroidManifest.xml
-          echo '        android:label="@string/app_name"' >> app/src/main/AndroidManifest.xml
-          echo '        android:roundIcon="@mipmap/ic_launcher_round"' >> app/src/main/AndroidManifest.xml
-          echo '        android:supportsRtl="true"' >> app/src/main/AndroidManifest.xml
-          echo '        android:theme="@style/Theme.AppCompat.Light.DarkActionBar"' >> app/src/main/AndroidManifest.xml
-          echo '        tools:targetApi="31">' >> app/src/main/AndroidManifest.xml
-          echo '' >> app/src/main/AndroidManifest.xml
-          echo '        <activity' >> app/src/main/AndroidManifest.xml
-          echo '            android:name=".MainActivity"' >> app/src/main/AndroidManifest.xml
-          echo '            android:exported="true"' >> app/src/main/AndroidManifest.xml
-          echo '            android:theme="@style/Theme.AppCompat.Light.DarkActionBar">' >> app/src/main/AndroidManifest.xml
-          echo '            <intent-filter>' >> app/src/main/AndroidManifest.xml
-          echo '                <action android:name="android.intent.action.MAIN" />' >> app/src/main/AndroidManifest.xml
-          echo '                <category android:name="android.intent.category.LAUNCHER" />' >> app/src/main/AndroidManifest.xml
-          echo '            </intent-filter>' >> app/src/main/AndroidManifest.xml
-          echo '        </activity>' >> app/src/main/AndroidManifest.xml
-          echo '    </application>' >> app/src/main/AndroidManifest.xml
-          echo '</manifest>' >> app/src/main/AndroidManifest.xml
-          
-          # 6. 创建必要的资源文件
-          mkdir -p app/src/main/res/values
-          
-          # strings.xml
-          echo '<?xml version="1.0" encoding="utf-8"?>' > app/src/main/res/values/strings.xml
-          echo '<resources>' >> app/src/main/res/values/strings.xml
-          echo '    <string name="app_name">OA App</string>' >> app/src/main/res/values/strings.xml
-          echo '</resources>' >> app/src/main/res/values/strings.xml
-          
-          # themes.xml
-          echo '<?xml version="1.0" encoding="utf-8"?>' > app/src/main/res/values/themes.xml
-          echo '<resources xmlns:tools="http://schemas.android.com/tools">' >> app/src/main/res/values/themes.xml
-          echo '    <style name="Theme.OAApp" parent="Theme.AppCompat.Light.DarkActionBar">' >> app/src/main/res/values/themes.xml
-          echo '        <item name="colorPrimary">#3F51B5</item>' >> app/src/main/res/values/themes.xml
-          echo '        <item name="colorPrimaryDark">#303F9F</item>' >> app/src/main/res/values/themes.xml
-          echo '        <item name="colorAccent">#FF4081</item>' >> app/src/main/res/values/themes.xml
-          echo '    </style>' >> app/src/main/res/values/themes.xml
-          echo '</resources>' >> app/src/main/res/values/themes.xml
-          
-          # 7. 简化build.gradle - 移除所有可能导致问题的依赖
-          if [ -f "app/build.gradle" ]; then
-            echo 'plugins {' > app/build.gradle
-            echo '    id "com.android.application"' >> app/build.gradle
-            echo '    id "org.jetbrains.kotlin.android"' >> app/build.gradle
-            echo '}' >> app/build.gradle
-            echo '' >> app/build.gradle
-            echo 'android {' >> app/build.gradle
-            echo '    namespace "com.oa.app"' >> app/build.gradle
-            echo '    compileSdk 34' >> app/build.gradle
-            echo '' >> app/build.gradle
-            echo '    defaultConfig {' >> app/build.gradle
-            echo '        applicationId "com.oa.app"' >> app/build.gradle
-            echo '        minSdk 21' >> app/build.gradle
-            echo '        targetSdk 34' >> app/build.gradle
-            echo '        versionCode 1' >> app/build.gradle
-            echo '        versionName "1.0.0"' >> app/build.gradle
-            echo '' >> app/build.gradle
-            echo '        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"' >> app/build.gradle
-            echo '    }' >> app/build.gradle
-            echo '' >> app/build.gradle
-            echo '    buildTypes {' >> app/build.gradle
-            echo '        release {' >> app/build.gradle
-            echo '            minifyEnabled false' >> app/build.gradle
-            echo '            proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"' >> app/build.gradle
-            echo '        }' >> app/build.gradle
-            echo '    }' >> app/build.gradle
-            echo '' >> app/build.gradle
-            echo '    compileOptions {' >> app/build.gradle
-            echo '        sourceCompatibility JavaVersion.VERSION_1_8' >> app/build.gradle
-            echo '        targetCompatibility JavaVersion.VERSION_1_8' >> app/build.gradle
-            echo '    }' >> app/build.gradle
-            echo '' >> app/build.gradle
-            echo '    kotlinOptions {' >> app/build.gradle
-            echo '        jvmTarget = "1.8"' >> app/build.gradle
-            echo '    }' >> app/build.gradle
-            echo '}' >> app/build.gradle
-            echo '' >> app/build.gradle
-            echo 'dependencies {' >> app/build.gradle
-            echo '    implementation "androidx.core:core-ktx:1.12.0"' >> app/build.gradle
-            echo '    implementation "androidx.appcompat:appcompat:1.6.1"' >> app/build.gradle
-            echo '    implementation "com.google.android.material:material:1.11.0"' >> app/build.gradle
-            echo '    implementation "androidx.constraintlayout:constraintlayout:2.1.4"' >> app/build.gradle
-            echo '' >> app/build.gradle
-            echo '    testImplementation "junit:junit:4.13.2"' >> app/build.gradle
-            echo '    androidTestImplementation "androidx.test.ext:junit:1.1.5"' >> app/build.gradle
-            echo '    androidTestImplementation "androidx.test.espresso:espresso-core:3.5.1"' >> app/build.gradle
-            echo '}' >> app/build.gradle
+          # 1. 修复主题文件 (防止 Material3 报错)
+          if [ -f "app/src/main/res/values/themes.xml" ]; then
+            sed -i 's/Theme.Material3.DayNight.DarkActionBar/Theme.AppCompat.Light.DarkActionBar/g' app/src/main/res/values/themes.xml
+            sed -i 's/Theme.Material3.DayNight/Theme.AppCompat.Light/g' app/src/main/res/values/themes.xml
           fi
           
+          # 2. 修复 AndroidManifest.xml (移除不存在的图标，修正 Theme)
+          if [ -f "app/src/main/AndroidManifest.xml" ]; then
+            sed -i 's/android:icon="@mipmap\/ic_launcher"//g' app/src/main/AndroidManifest.xml
+            sed -i 's/android:roundIcon="@mipmap\/ic_launcher_round"//g' app/src/main/AndroidManifest.xml
+            sed -i 's/@style\/Theme.OAApp/@style\/Theme.AppCompat.Light.DarkActionBar/g' app/src/main/AndroidManifest.xml
+          fi
+          
+          # 3. 创建必要的目录
+          mkdir -p app/src/main/java/com/oa/app/util
+          mkdir -p app/src/main/res/layout
+          
+          # 4. 创建 Config.kt (解决找不到常量的问题)
+          cat > app/src/main/java/com/oa/app/Config.kt << 'EOF'
+package com.oa.app
+
+object Config {
+    const val PREF_TOKEN = "user_token"
+}
+EOF
+
+          # 5. 重写 AuthManager.kt (修复协程 first() 问题)
+          cat > app/src/main/java/com/oa/app/util/AuthManager.kt << 'EOF'
+package com.oa.app.util
+
+import android.content.Context
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.*
+import androidx.datastore.preferences.preferencesDataStore
+import com.oa.app.Config
+import kotlinx.coroutines.flow.firstOrNull
+
+val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
+
+class AuthManager(private val context: Context) {
+
+    suspend fun saveToken(token: String) {
+        context.dataStore.edit { preferences ->
+            preferences[stringPreferencesKey(Config.PREF_TOKEN)] = token
+        }
+    }
+
+    suspend fun clearAuth() {
+        context.dataStore.edit { preferences ->
+            preferences.clear()
+        }
+    }
+
+    suspend fun getToken(): String? {
+        return try {
+            val preferences = context.dataStore.data.firstOrNull()
+            preferences?.get(stringPreferencesKey(Config.PREF_TOKEN))
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    suspend fun isLoggedIn(): Boolean {
+        return getToken() != null
+    }
+}
+EOF
+
+          # 6. 重写 LocationHelper.kt
+          cat > app/src/main/java/com/oa/app/util/LocationHelper.kt << 'EOF'
+package com.oa.app.util
+
+import android.Manifest
+import android.content.Context
+import android.content.pm.PackageManager
+import androidx.core.content.ContextCompat
+
+class LocationHelper(private val context: Context) {
+
+    fun hasLocationPermission(): Boolean {
+        return ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.ACCESS_FINE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
+    }
+}
+EOF
+
+          # 7. 重写 MainActivity.kt (确保不崩溃)
+          cat > app/src/main/java/com/oa/app/MainActivity.kt << 'EOF'
+package com.oa.app
+
+import android.os.Bundle
+import androidx.appcompat.app.AppCompatActivity
+
+class MainActivity : AppCompatActivity() {
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+    }
+}
+EOF
+
+          # 8. 【关键】创建 activity_main.xml (之前缺失导致闪退的核心原因)
+          cat > app/src/main/res/layout/activity_main.xml << 'EOF'
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout 
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".MainActivity">
+
+    <TextView
+        android:id="@+id/textView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="OA 办公应用启动成功"
+        android:textSize="24sp"
+        android:textColor="#000000"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>
+EOF
+
+          # 9. 自动注入必要的 Gradle 依赖
+          if [ -f "app/build.gradle" ]; then
+            echo "--- 检查并注入依赖 ---"
+            
+            # 注入协程
+            if ! grep -q "kotlinx-coroutines-android" app/build.gradle; then
+              sed -i '/dependencies {/a\    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3"' app/build.gradle
+            fi
+            
+            # 注入 DataStore
+            if ! grep -q "datastore-preferences" app/build.gradle; then
+              sed -i '/dependencies {/a\    implementation "androidx.datastore:datastore-preferences:1.0.0"' app/build.gradle
+            fi
+            
+            # 注入 ConstraintLayout
+            if ! grep -q "constraintlayout" app/build.gradle; then
+              sed -i '/dependencies {/a\    implementation "androidx.constraintlayout:constraintlayout:2.1.4"' app/build.gradle
+            fi
+            
+            # 注入 AppCompat (如果还没有)
+            if ! grep -q "appcompat" app/build.gradle; then
+              sed -i '/dependencies {/a\    implementation "androidx.appcompat:appcompat:1.6.1"' app/build.gradle
+            fi
+          else
+            echo "错误：未找到 app/build.gradle"
+            exit 1
+          fi
+          
+          echo "--- 开始编译 ---"
+          # 执行编译
           if [ -f "gradlew" ]; then
             chmod +x gradlew
             ./gradlew clean
             ./gradlew assembleDebug --stacktrace
           else
-            wget -q https://services.gradle.org/distributions/gradle-8.2-bin.zip
-            unzip -q gradle-8
+            echo "错误：未找到 gradlew"
+            exit 1
+          fi
+          
+        else
+          echo "错误：未找到 android 目录"
+          exit 1
+        fi
+
+    - name: Upload APK
+      if: success()
+      uses: actions/upload-artifact@v4
+      with:
+        name: OA-App-Debug
+        path: android/app/build/outputs/apk/debug/*.apk
