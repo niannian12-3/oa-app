@@ -92,8 +92,31 @@ jobs:
 
         printf '%s\n' '<?xml version="1.0" encoding="utf-8"?>' '<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto" xmlns:tools="http://schemas.android.com/tools" android:layout_width="match_parent" android:layout_height="match_parent" tools:context=".MainActivity">' '<TextView android:id="@+id/textView" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="OA App Running Successfully!" android:textSize="24sp" android:textColor="#000000" app:layout_constraintBottom_toBottomOf="parent" app:layout_constraintLeft_toLeftOf="parent" app:layout_constraintRight_toRightOf="parent" app:layout_constraintTop_toTopOf="parent" />' '</androidx.constraintlayout.widget.ConstraintLayout>' > app/src/main/res/layout/activity_main.xml
 
-        # --- 4. 【核心修复】生成 build.gradle，显式添加 repositories 块 ---
-        echo "🔨 Overwriting app/build.gradle with explicit repositories..."
+        # --- 4. 【核心大招】生成 settings.gradle (解决仓库问题) ---
+        echo "🔨 Overwriting settings.gradle to define repositories globally..."
+        printf '%s\n' \
+        "pluginManagement {" \
+        "    repositories {" \
+        "        google()" \
+        "        mavenCentral()" \
+        "        gradlePluginPortal()" \
+        "    }" \
+        "}" \
+        "dependencyResolutionManagement {" \
+        "    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)" \
+        "    repositories {" \
+        "        google()" \
+        "        mavenCentral()" \
+        "    }" \
+        "}" \
+        "rootProject.name = \"OAApp\"" \
+        "include ':app'" > settings.gradle
+        
+        echo "✅ settings.gradle replaced successfully."
+        cat settings.gradle
+
+        # --- 5. 【核心大招】生成 app/build.gradle (移除 repositories 块，因为 settings.gradle 已接管) ---
+        echo "🔨 Overwriting app/build.gradle..."
         printf '%s\n' \
         "plugins {" \
         "    id 'com.android.application'" \
@@ -133,11 +156,6 @@ jobs:
         "    }" \
         "}" \
         "" \
-        "repositories {" \
-        "    google()" \
-        "    mavenCentral()" \
-        "}" \
-        "" \
         "dependencies {" \
         "    implementation 'androidx.core:core-ktx:1.12.0'" \
         "    implementation 'androidx.appcompat:appcompat:1.6.1'" \
@@ -151,9 +169,8 @@ jobs:
         "}" > app/build.gradle
         
         echo "✅ app/build.gradle replaced successfully."
-        cat app/build.gradle
 
-        # --- 5. 编译 ---
+        # --- 6. 编译 ---
         echo "🔨 Starting Build..."
         ./gradlew clean --no-daemon
         ./gradlew assembleDebug --no-daemon --stacktrace
