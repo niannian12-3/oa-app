@@ -1,24 +1,16 @@
-name: Build APK
-
-on: [push]
-
+name: Build Stable APK
+on: [push, workflow_dispatch]
 jobs:
   build:
     runs-on: ubuntu-latest
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-    
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-    
-    - name: Setup Java
+    - uses: actions/checkout@v4
+    - name: Setup Android SDK
       run: |
         sudo apt update
         sudo apt install -y openjdk-17-jdk wget unzip
-    
-    - name: Setup Android SDK
-      run: |
         mkdir -p ~/android-sdk
         cd ~/android-sdk
         wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
@@ -26,120 +18,219 @@ jobs:
         mv cmdline-tools cmdline-tools-temp
         mkdir -p cmdline-tools
         mv cmdline-tools-temp cmdline-tools/latest
+
         export ANDROID_HOME=~/android-sdk
         export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin
+
         yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
-        $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-34" "build-tools;34.0.0"
-        echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
-        echo "$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$ANDROID_HOME/tools/bin:$ANDROID_HOME/tools" >> $GITHUB_PATH
-    
-    - name: Fix Android project
+        $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-34" "build-tools;34.0.0" "platform-tools"
+
+        cd $GITHUB_WORKSPACE
+
+    - name: Create Simple App
       run: |
         if [ -d "android" ]; then
           cd android
-          
-          # 1. 确保有AppCompat依赖
-          if [ -f "app/build.gradle" ]; then
-            # 检查是否已经有dependencies块
-            if grep -q "dependencies {" app/build.gradle; then
-              # 添加AppCompat依赖（如果不存在）
-              if ! grep -q "androidx.appcompat:appcompat" app/build.gradle; then
-                sed -i '/dependencies {/a\    implementation "androidx.appcompat:appcompat:1.6.1"' app/build.gradle
-              fi
-            else
-              # 如果没有dependencies块，在文件末尾添加
-              echo '' >> app/build.gradle
-              echo 'dependencies {' >> app/build.gradle
-              echo '    implementation "androidx.appcompat:appcompat:1.6.1"' >> app/build.gradle
-              echo '}' >> app/build.gradle
-            fi
-          fi
-          
-          # 2. 修复主题文件 - 使用AppCompat而不是Material3
-          mkdir -p app/src/main/res/values
-          cat > app/src/main/res/values/themes.xml << 'EOF'
+
+          echo "=== 创建最简单的应用 ==="
+
+          # 创建MainActivity.kt
+          mkdir -p app/src/main/java/com/oa/app
+          cat > app/src/main/java/com/oa/app/MainActivity.kt << 'MAIN_EOF'
+package com.oa.app
+
+import android.os.Bundle
+import android.widget.Button
+import android.widget.EditText
+import android.widget.TextView
+import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
+
+class MainActivity : AppCompatActivity() {
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+
+        val employeeIdEditText = findViewById<EditText>(R.id.employeeIdEditText)
+        val passwordEditText = findViewById<EditText>(R.id.passwordEditText)
+        val loginButton = findViewById<Button>(R.id.loginButton)
+        val statusTextView = findViewById<TextView>(R.id.statusTextView)
+
+        statusTextView.text = "OA办公系统\n版本 1.0.0\n后端地址: 192.168.11.43:3000"
+
+        loginButton.setOnClickListener {
+            val employeeId = employeeIdEditText.text.toString()
+            val password = passwordEditText.text.toString()
+
+            if (employeeId.isEmpty() || password.isEmpty()) {
+                Toast.makeText(this, "请输入员工ID和密码", Toast.LENGTH_SHORT).show()
+            } else {
+                statusTextView.text = "登录成功！\n员工ID: $employeeId\n后端地址: 192.168.11.43:3000"
+                Toast.makeText(this, "登录成功！", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+}
+MAIN_EOF
+
+          # 创建布局文件
+          mkdir -p app/src/main/res/layout
+          cat > app/src/main/res/layout/activity_main.xml << 'LAYOUT_EOF'
 <?xml version="1.0" encoding="utf-8"?>
-<resources xmlns:tools="http://schemas.android.com/tools">
-    <style name="Theme.OAApp" parent="Theme.AppCompat.Light.DarkActionBar">
-        <item name="colorPrimary">#3F51B5</item>
-        <item name="colorPrimaryDark">#303F9F</item>
-        <item name="colorAccent">#FF4081</item>
-        <item name="android:statusBarColor">#303F9F</item>
-    </style>
-</resources>
-EOF
-          
-          # 3. 创建完整的strings.xml
-          cat > app/src/main/res/values/strings.xml << 'EOF'
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:gravity="center"
+    android:background="#f5f5f5">
+
+    <TextView
+        android:id="@+id/titleTextView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="OA办公系统"
+        android:textSize="28sp"
+        android:textStyle="bold"
+        android:textColor="#3F51B5"
+        android:layout_marginBottom="32dp"/>
+
+    <EditText
+        android:id="@+id/employeeIdEditText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="员工ID"
+        android:inputType="number"
+        android:padding="12dp"
+        android:background="@android:drawable/editbox_background"
+        android:layout_marginBottom="16dp"/>
+
+    <EditText
+        android:id="@+id/passwordEditText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="密码"
+        android:inputType="textPassword"
+        android:padding="12dp"
+        android:background="@android:drawable/editbox_background"
+        android:layout_marginBottom="24dp"/>
+
+    <Button
+        android:id="@+id/loginButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="登录"
+        android:textSize="18sp"
+        android:background="#3F51B5"
+        android:textColor="#FFFFFF"
+        android:padding="12dp"
+        android:layout_marginBottom="32dp"/>
+
+    <TextView
+        android:id="@+id/statusTextView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="准备登录..."
+        android:textSize="16sp"
+        android:gravity="center"
+        android:padding="16dp"
+        android:background="#FFFFFF"
+        android:elevation="2dp"
+        android:textColor="#333333"/>
+</LinearLayout>
+LAYOUT_EOF
+
+          # 创建AndroidManifest.xml
+          cat > app/src/main/AndroidManifest.xml << 'MANIFEST_EOF'
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="OA办公"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.AppCompat.Light.DarkActionBar">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:screenOrientation="portrait">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>
+MANIFEST_EOF
+
+          # 创建strings.xml
+          mkdir -p app/src/main/res/values
+          cat > app/src/main/res/values/strings.xml << 'STRINGS_EOF'
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">OA App</string>
-    <string name="clock_in">Clock In</string>
-    <string name="clock_out">Clock Out</string>
-    <string name="login_title">Login</string>
-    <string name="employee_id">Employee ID</string>
-    <string name="password">Password</string>
-    <string name="login">Login</string>
-    <string name="nav_attendance">Attendance</string>
-    <string name="nav_leave">Leave</string>
-    <string name="nav_expense">Expense</string>
-    <string name="nav_employees">Employees</string>
-    <string name="nav_mine">Mine</string>
-    <string name="attendance">Attendance</string>
-    <string name="leave">Leave</string>
-    <string name="expense">Expense</string>
-    <string name="employees">Employees</string>
+    <string name="app_name">OA办公</string>
 </resources>
-EOF
-          
-          # 4. 修复AndroidManifest.xml - 强制使用AppCompat主题
-          if [ -f "app/src/main/AndroidManifest.xml" ]; then
-            # 读取文件内容
-            content=$(cat app/src/main/AndroidManifest.xml)
-            
-            # 替换所有主题引用为Theme.OAApp
-            content=${content//Theme\.Material3\.DayNight\.DarkActionBar/Theme.OAApp}
-            content=${content//Theme\.Material3/Theme.OAApp}
-            content=${content//android:theme=\"@style\/Theme\"/android:theme=\"@style\/Theme.OAApp\"}
-            
-            # 移除图标引用
-            content=${content//android:icon=\"@mipmap\/ic_launcher\"/}
-            content=${content//android:roundIcon=\"@mipmap\/ic_launcher_round\"/}
-            
-            # 写回文件
-            echo "$content" > app/src/main/AndroidManifest.xml
-          fi
-          
-          echo "项目修复完成：使用AppCompat主题"
-        fi
-    
-    - name: Setup Gradle Wrapper
-      run: |
-        if [ -d "android" ]; then
-          cd android
-          if [ ! -f "gradlew" ]; then
+STRINGS_EOF
+
+          # 创建build.gradle
+          cat > app/build.gradle << 'GRADLE_EOF'
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+}
+
+android {
+    namespace 'com.oa.app'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.oa.app"
+        minSdk 21
+        targetSdk 34
+        versionCode 1
+        versionName "1.0.0"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    kotlinOptions {
+        jvmTarget = '1.8'
+    }
+}
+
+dependencies {
+    implementation 'androidx.core:core-ktx:1.12.0'
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'com.google.android.material:material:1.11.0'
+}
+GRADLE_EOF
+
+          # 构建APK
+          echo "=== 开始构建APK ==="
+          if [ -f "gradlew" ]; then
+            chmod +x gradlew
+            ./gradlew clean
+            ./gradlew assembleDebug
+          else
             wget -q https://services.gradle.org/distributions/gradle-8.2-bin.zip
             unzip -q gradle-8.2-bin.zip
             ./gradle-8.2/bin/gradle wrapper --gradle-version 8.2
             chmod +x gradlew
+            ./gradlew clean
+            ./gradlew assembleDebug
           fi
-        fi
-    
-    - name: Build APK
-      run: |
-        if [ -d "android" ]; then
-          cd android
-          chmod +x gradlew
-          ./gradlew clean
-          ./gradlew assembleDebug --stacktrace
         else
-          echo "android directory not found"
-          exit 1
-        fi
-    
-    - name: Upload APK
-      uses: actions/upload-artifact@v4
-      if: success()
-      with:
-        name: apk
-        path: android/app/build/outputs/apk/debug/*.apk
