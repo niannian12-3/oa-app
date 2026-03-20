@@ -50,15 +50,14 @@ jobs:
         mkdir -p gradle/wrapper
         wget -q https://raw.githubusercontent.com/gradle/gradle/master/gradle/wrapper/gradle-wrapper.jar -O gradle/wrapper/gradle-wrapper.jar
         
-        # 4. 创建 gradle-wrapper.properties (指定 Gradle 8.2)
-        cat > gradle/wrapper/gradle-wrapper.properties <<EOF
-distributionBase=GRADLE_USER_HOME
-distributionPath=wrapper/dists
-distributionUrl=https\://services.gradle.org/distributions/gradle-8.2-bin.zip
-networkTimeout=10000
-zipStoreBase=GRADLE_USER_HOME
-zipStorePath=wrapper/dists
-EOF
+        # 4. 创建 gradle-wrapper.properties
+        echo "distributionBase=GRADLE_USER_HOME" > gradle/wrapper/gradle-wrapper.properties
+        echo "distributionPath=wrapper/dists" >> gradle/wrapper/gradle-wrapper.properties
+        echo "distributionUrl=https\://services.gradle.org/distributions/gradle-8.2-bin.zip" >> gradle/wrapper/gradle-wrapper.properties
+        echo "networkTimeout=10000" >> gradle/wrapper/gradle-wrapper.properties
+        echo "zipStoreBase=GRADLE_USER_HOME" >> gradle/wrapper/gradle-wrapper.properties
+        echo "zipStorePath=wrapper/dists" >> gradle/wrapper/gradle-wrapper.properties
+        
         echo "✅ Gradle Wrapper generated successfully."
         
         # 5. 修复主题文件
@@ -80,135 +79,98 @@ EOF
         mkdir -p app/src/main/res/layout
         
         # 8. 生成 Config.kt
-        cat > app/src/main/java/com/oa/app/Config.kt <<EOF
-package com.oa.app
-
-object Config {
-    const val PREF_TOKEN = "user_token"
-}
-EOF
+        echo "package com.oa.app" > app/src/main/java/com/oa/app/Config.kt
+        echo "" >> app/src/main/java/com/oa/app/Config.kt
+        echo "object Config {" >> app/src/main/java/com/oa/app/Config.kt
+        echo "    const val PREF_TOKEN = \"user_token\"" >> app/src/main/java/com/oa/app/Config.kt
+        echo "}" >> app/src/main/java/com/oa/app/Config.kt
 
         # 9. 生成 AuthManager.kt
-        cat > app/src/main/java/com/oa/app/util/AuthManager.kt <<EOF
-package com.oa.app.util
-
-import android.content.Context
-import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.core.*
-import androidx.datastore.preferences.preferencesDataStore
-import com.oa.app.Config
-import kotlinx.coroutines.flow.firstOrNull
-
-val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
-
-class AuthManager(private val context: Context) {
-    suspend fun saveToken(token: String) {
-        context.dataStore.edit { preferences ->
-            preferences[stringPreferencesKey(Config.PREF_TOKEN)] = token
-        }
-    }
-    suspend fun clearAuth() {
-        context.dataStore.edit { preferences ->
-            preferences.clear()
-        }
-    }
-    suspend fun getToken(): String? {
-        return try {
-            val preferences = context.dataStore.data.firstOrNull()
-            preferences?.get(stringPreferencesKey(Config.PREF_TOKEN))
-        } catch (e: Exception) {
-            null
-        }
-    }
-    suspend fun isLoggedIn(): Boolean {
-        return getToken() != null
-    }
-}
-EOF
+        echo "package com.oa.app.util" > app/src/main/java/com/oa/app/util/AuthManager.kt
+        echo "" >> app/src/main/java/com/oa/app/util/AuthManager.kt
+        echo "import android.content.Context" >> app/src/main/java/com/oa/app/util/AuthManager.kt
+        echo "import androidx.datastore.core.DataStore" >> app/src/main/java/com/oa/app/util/AuthManager.kt
+        echo "import androidx.datastore.preferences.core.*" >> app/src/main/java/com/oa/app/util/AuthManager.kt
+        echo "import androidx.datastore.preferences.preferencesDataStore" >> app/src/main/java/com/oa/app/util/AuthManager.kt
+        echo "import com.oa.app.Config" >> app/src/main/java/com/oa/app/util/AuthManager.kt
+        echo "import kotlinx.coroutines.flow.firstOrNull" >> app/src/main/java/com/oa/app/util/AuthManager.kt
+        echo "" >> app/src/main/java/com/oa/app/util/AuthManager.kt
+        echo "val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = \"settings\")" >> app/src/main/java/com/oa/app/util/AuthManager.kt
+        echo "" >> app/src/main/java/com/oa/app/util/AuthManager.kt
+        echo "class AuthManager(private val context: Context) {" >> app/src/main/java/com/oa/app/util/AuthManager.kt
+        echo "    suspend fun saveToken(token: String) {" >> app/src/main/java/com/oa/app/util/AuthManager.kt
+        echo "        context.dataStore.edit { preferences ->" >> app/src/main/java/com/oa/app/util/AuthManager.kt
+        echo "            preferences[stringPreferencesKey(Config.PREF_TOKEN)] = token" >> app/src/main/java/com/oa/app/util/AuthManager.kt
+        echo "        }" >> app/src/main/java/com/oa/app/util/AuthManager.kt
+        echo "    }" >> app/src/main/java/com/oa/app/util/AuthManager.kt
+        echo "    suspend fun clearAuth() {" >> app/src/main/java/com/oa/app/util/AuthManager.kt
+        echo "        context.dataStore.edit { preferences ->" >> app/src/main/java/com/oa/app/util/AuthManager.kt
+        echo "            preferences.clear()" >> app/src/main/java/com/oa/app/util/AuthManager.kt
+        echo "        }" >> app/src/main/java/com/oa/app/util/AuthManager.kt
+        echo "    }" >> app/src/main/java/com/oa/app/util/AuthManager.kt
+        echo "    suspend fun getToken(): String? {" >> app/src/main/java/com/oa/app/util/AuthManager.kt
+        echo "        return try {" >> app/src/main/java/com/oa/app/util/AuthManager.kt
+        echo "            val preferences = context.dataStore.data.firstOrNull()" >> app/src/main/java/com/oa/app/util/AuthManager.kt
+        echo "            preferences?.get(stringPreferencesKey(Config.PREF_TOKEN))" >> app/src/main/java/com/oa/app/util/AuthManager.kt
+        echo "        } catch (e: Exception) {" >> app/src/main/java/com/oa/app/util/AuthManager.kt
+        echo "            null" >> app/src/main/java/com/oa/app/util/AuthManager.kt
+        echo "        }" >> app/src/main/java/com/oa/app/util/AuthManager.kt
+        echo "    }" >> app/src/main/java/com/oa/app/util/AuthManager.kt
+        echo "    suspend fun isLoggedIn(): Boolean {" >> app/src/main/java/com/oa/app/util/AuthManager.kt
+        echo "        return getToken() != null" >> app/src/main/java/com/oa/app/util/AuthManager.kt
+        echo "    }" >> app/src/main/java/com/oa/app/util/AuthManager.kt
+        echo "}" >> app/src/main/java/com/oa/app/util/AuthManager.kt
 
         # 10. 生成 LocationHelper.kt
-        cat > app/src/main/java/com/oa/app/util/LocationHelper.kt <<EOF
-package com.oa.app.util
-
-import android.Manifest
-import android.content.Context
-import android.content.pm.PackageManager
-import androidx.core.content.ContextCompat
-
-class LocationHelper(private val context: Context) {
-    fun hasLocationPermission(): Boolean {
-        return ContextCompat.checkSelfPermission(
-            context,
-            Manifest.permission.ACCESS_FINE_LOCATION
-        ) == PackageManager.PERMISSION_GRANTED
-    }
-}
-EOF
+        echo "package com.oa.app.util" > app/src/main/java/com/oa/app/util/LocationHelper.kt
+        echo "" >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+        echo "import android.Manifest" >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+        echo "import android.content.Context" >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+        echo "import android.content.pm.PackageManager" >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+        echo "import androidx.core.content.ContextCompat" >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+        echo "" >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+        echo "class LocationHelper(private val context: Context) {" >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+        echo "    fun hasLocationPermission(): Boolean {" >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+        echo "        return ContextCompat.checkSelfPermission(" >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+        echo "            context," >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+        echo "            Manifest.permission.ACCESS_FINE_LOCATION" >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+        echo "        ) == PackageManager.PERMISSION_GRANTED" >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+        echo "    }" >> app/src/main/java/com/oa/app/util/LocationHelper.kt
+        echo "}" >> app/src/main/java/com/oa/app/util/LocationHelper.kt
 
         # 11. 生成 MainActivity.kt
-        cat > app/src/main/java/com/oa/app/MainActivity.kt <<EOF
-package com.oa.app
+        echo "package com.oa.app" > app/src/main/java/com/oa/app/MainActivity.kt
+        echo "" >> app/src/main/java/com/oa/app/MainActivity.kt
+        echo "import android.os.Bundle" >> app/src/main/java/com/oa/app/MainActivity.kt
+        echo "import androidx.appcompat.app.AppCompatActivity" >> app/src/main/java/com/oa/app/MainActivity.kt
+        echo "" >> app/src/main/java/com/oa/app/MainActivity.kt
+        echo "class MainActivity : AppCompatActivity() {" >> app/src/main/java/com/oa/app/MainActivity.kt
+        echo "    override fun onCreate(savedInstanceState: Bundle?) {" >> app/src/main/java/com/oa/app/MainActivity.kt
+        echo "        super.onCreate(savedInstanceState)" >> app/src/main/java/com/oa/app/MainActivity.kt
+        echo "        setContentView(R.layout.activity_main)" >> app/src/main/java/com/oa/app/MainActivity.kt
+        echo "    }" >> app/src/main/java/com/oa/app/MainActivity.kt
+        echo "}" >> app/src/main/java/com/oa/app/MainActivity.kt
 
-import android.os.Bundle
-import androidx.appcompat.app.AppCompatActivity
-
-class MainActivity : AppCompatActivity() {
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
-    }
-}
-EOF
-
-        # 12. 生成 activity_main.xml (如果不存在或需要覆盖)
-        cat > app/src/main/res/layout/activity_main.xml <<EOF
-<?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    tools:context=".MainActivity">
-
-    <TextView
-        android:id="@+id/textView"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="OA App Built Successfully!"
-        android:textSize="24sp"
-        android:textColor="#000000"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintLeft_toLeftOf="parent"
-        app:layout_constraintRight_toRightOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
-</androidx.constraintlayout.widget.ConstraintLayout>
-EOF
-
-        # 13. 检查并添加协程依赖 (防止编译错误)
-        if [ -f "app/build.gradle" ]; then
-          if ! grep -q "kotlinx-coroutines-android" app/build.gradle; then
-            # 尝试在 dependencies 块末尾添加，这里简单追加到文件末尾通常也能工作，
-            # 但为了稳妥，我们假设原文件结构正常，直接追加
-            echo "" >> app/build.gradle
-            echo "// Added by CI" >> app/build.gradle
-            echo "dependencies {" >> app/build.gradle
-            echo "    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'" >> app/build.gradle
-            echo "}" >> app/build.gradle
-            # 注意：如果原文件已经有 dependencies 块，这样追加可能会导致语法错误。
-            # 更安全的做法是检测是否已有 dependencies 块。
-            # 鉴于时间紧迫，我们采用最保守策略：只在完全没有 dependencies 块时才添加整个块，
-            # 或者假设用户提供的 build.gradle 是完整的，我们只尝试注入。
-            # 修正策略：如果文件里已经有 'dependencies {'，我们就不动它，赌它里面已经有了或者Gradle能处理。
-            # 如果报错，那是原文件问题。这里为了“今天成功”，我们选择**不修改**原有的 build.gradle 依赖部分，
-            # 除非我们确定它缺失。根据之前的日志，缺失的是 datastore 和 coroutines。
-            # 让我们回退到最安全的操作：不自动插入依赖，而是依靠原文件。
-            # 如果原文件真的缺依赖，我们会再次看到 "Could not find" 或 "Unresolved reference"。
-            # 但根据之前的成功日志，原文件似乎是好的。
-            # **最终决定**：注释掉上面的自动插入逻辑，避免破坏原有 build.gradle 结构。
-            # 如果编译报错缺依赖，那是最后一步才考虑的事。
-            sed -i '/\/\/ Added by CI/,/^}/d' app/build.gradle # 撤销刚才的写入
-          fi
-        fi
+        # 12. 生成 activity_main.xml
+        echo "<?xml version=\"1.0\" encoding=\"utf-8\"?>" > app/src/main/res/layout/activity_main.xml
+        echo "<androidx.constraintlayout.widget.ConstraintLayout xmlns:android=\"http://schemas.android.com/apk/res/android\"" >> app/src/main/res/layout/activity_main.xml
+        echo "    xmlns:app=\"http://schemas.android.com/apk/res-auto\"" >> app/src/main/res/layout/activity_main.xml
+        echo "    xmlns:tools=\"http://schemas.android.com/tools\"" >> app/src/main/res/layout/activity_main.xml
+        echo "    android:layout_width=\"match_parent\"" >> app/src/main/res/layout/activity_main.xml
+        echo "    android:layout_height=\"match_parent\"" >> app/src/main/res/layout/activity_main.xml
+        echo "    tools:context=\".MainActivity\">" >> app/src/main/res/layout/activity_main.xml
+        echo "    <TextView" >> app/src/main/res/layout/activity_main.xml
+        echo "        android:id=\"@+id/textView\"" >> app/src/main/res/layout/activity_main.xml
+        echo "        android:layout_width=\"wrap_content\"" >> app/src/main/res/layout/activity_main.xml
+        echo "        android:layout_height=\"wrap_content\"" >> app/src/main/res/layout/activity_main.xml
+        echo "        android:text=\"OA App Built Successfully!\"" >> app/src/main/res/layout/activity_main.xml
+        echo "        android:textSize=\"24sp\"" >> app/src/main/res/layout/activity_main.xml
+        echo "        android:textColor=\"#000000\"" >> app/src/main/res/layout/activity_main.xml
+        echo "        app:layout_constraintBottom_toBottomOf=\"parent\"" >> app/src/main/res/layout/activity_main.xml
+        echo "        app:layout_constraintLeft_toLeftOf=\"parent\"" >> app/src/main/res/layout/activity_main.xml
+        echo "        app:layout_constraintRight_toRightOf=\"parent\"" >> app/src/main/res/layout/activity_main.xml
+        echo "        app:layout_constraintTop_toTopOf=\"parent\" />" >> app/src/main/res/layout/activity_main.xml
+        echo "</androidx.constraintlayout.widget.ConstraintLayout>" >> app/src/main/res/layout/activity_main.xml
 
         echo "🚀 Starting Build..."
         ./gradlew clean --no-daemon
