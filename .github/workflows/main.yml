@@ -1,4 +1,4 @@
-name: Build OA App (Final Fixed)
+name: Build OA App (No Duplicate Resources)
 
 on:
   push:
@@ -18,7 +18,6 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    # ✅ 关键修复：手动下载并指定 Gradle 8.7，避开系统默认版本
     - name: Setup Specific Gradle 8.7
       run: |
         wget -q https://services.gradle.org/distributions/gradle-8.7-bin.zip
@@ -48,7 +47,6 @@ jobs:
 
         class MainActivity : AppCompatActivity() {
             private val SERVER_URL = "http://192.168.11.43:3000/login"
-
             override fun onCreate(savedInstanceState: Bundle?) {
                 super.onCreate(savedInstanceState)
                 setContentView(R.layout.activity_main)
@@ -57,7 +55,6 @@ jobs:
                 val btnLogin = findViewById<Button>(R.id.loginButton)
                 val tvStatus = findViewById<TextView>(R.id.statusTextView)
                 tvStatus.text = "就绪 (IP: 192.168.11.43)"
-
                 btnLogin.setOnClickListener {
                     val id = etId.text.toString().trim()
                     val pwd = etPwd.text.toString().trim()
@@ -79,14 +76,11 @@ jobs:
                     }
                 }
             }
-
             private fun login(id: String, pwd: String): String {
                 val conn = URL(SERVER_URL).openConnection() as HttpURLConnection
                 try {
-                    conn.requestMethod = "POST"
-                    conn.doOutput = true
-                    conn.connectTimeout = 10000
-                    conn.readTimeout = 10000
+                    conn.requestMethod = "POST"; conn.doOutput = true
+                    conn.connectTimeout = 10000; conn.readTimeout = 10000
                     conn.setRequestProperty("Content-Type", "application/json")
                     OutputStreamWriter(conn.outputStream).use { it.write("""{"employeeId":"$id","password":"$pwd"}""") }
                     val code = conn.responseCode
@@ -146,20 +140,10 @@ jobs:
     - name: Generate app/build.gradle
       run: |
         cat > app/build.gradle << 'GRADLE_EOF'
-        plugins {
-            id 'com.android.application'
-            id 'org.jetbrains.kotlin.android'
-        }
+        plugins { id 'com.android.application'; id 'org.jetbrains.kotlin.android' }
         android {
-            namespace 'com.oa.app'
-            compileSdk 34
-            defaultConfig {
-                applicationId "com.oa.app"
-                minSdk 24
-                targetSdk 34
-                versionCode 1
-                versionName "1.0"
-            }
+            namespace 'com.oa.app'; compileSdk 34
+            defaultConfig { applicationId "com.oa.app"; minSdk 24; targetSdk 34; versionCode 1; versionName "1.0" }
             buildTypes { release { minifyEnabled false } }
             compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
             kotlinOptions { jvmTarget = '17' }
@@ -190,18 +174,15 @@ jobs:
     - name: Generate settings.gradle
       run: |
         cat > settings.gradle << 'GRADLE_EOF'
-        pluginManagement {
-            repositories { google(); mavenCentral(); gradlePluginPortal() }
-        }
+        pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }
         dependencyResolutionManagement {
             repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
             repositories { google(); mavenCentral() }
         }
-        rootProject.name = "OAApp"
-        include ':app'
+        rootProject.name = "OAApp"; include ':app'
         GRADLE_EOF
 
-    # ✅ 关键修复：生成 gradle.properties 开启 AndroidX
+    # 7. gradle.properties
     - name: Generate gradle.properties
       run: |
         cat > gradle.properties << 'EOF'
@@ -210,26 +191,58 @@ jobs:
         android.enableJetifier=true
         EOF
 
-    # 7. Resources
+    # ✅ 修复点：严格分离 strings.xml 和 colors.xml，不再重复定义
     - name: Generate Resources
       run: |
-        echo '<resources><string name="app_name">OA办公</string><color name="ic_launcher_background">#FFFFFF</color></resources>' > app/src/main/res/values/strings.xml
-        echo '<resources><color name="ic_launcher_background">#FFFFFF</color></resources>' > app/src/main/res/values/colors.xml
+        # strings.xml 只包含字符串
+        cat > app/src/main/res/values/strings.xml << 'EOF'
+        <resources>
+            <string name="app_name">OA办公</string>
+        </resources>
+        EOF
+
+        # colors.xml 只包含颜色
+        cat > app/src/main/res/values/colors.xml << 'EOF'
+        <resources>
+            <color name="ic_launcher_background">#FFFFFF</color>
+        </resources>
+        EOF
+
+        # 图标配置
         mkdir -p app/src/main/res/mipmap-anydpi-v26
-        echo '<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android"><background android:drawable="@color/ic_launcher_background"/><foreground android:drawable="@drawable/ic_foreground"/></adaptive-icon>' > app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
-        echo '<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android"><background android:drawable="@color/ic_launcher_background"/><foreground android:drawable="@drawable/ic_foreground"/></adaptive-icon>' > app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
+        cat > app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml << 'EOF'
+        <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+            <background android:drawable="@color/ic_launcher_background"/>
+            <foreground android:drawable="@drawable/ic_foreground"/>
+        </adaptive-icon>
+        EOF
+        
+        cat > app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml << 'EOF'
+        <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+            <background android:drawable="@color/ic_launcher_background"/>
+            <foreground android:drawable="@drawable/ic_foreground"/>
+        </adaptive-icon>
+        EOF
+
+        # 矢量图
         mkdir -p app/src/main/res/drawable
-        echo '<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108"><path android:fillColor="#3DDC84" android:pathData="M0,0h108v108H0z"/><path android:fillColor="#FFFFFF" android:pathData="M54,54m-20,0a20,20 0,1 1,40 0a20,20 0,1 1,-40 0"/></vector>' > app/src/main/res/drawable/ic_foreground.xml
+        cat > app/src/main/res/drawable/ic_foreground.xml << 'EOF'
+        <vector xmlns:android="http://schemas.android.com/apk/res/android" 
+            android:width="108dp" android:height="108dp" 
+            android:viewportWidth="108" android:viewportHeight="108">
+            <path android:fillColor="#3DDC84" android:pathData="M0,0h108v108H0z"/>
+            <path android:fillColor="#FFFFFF" android:pathData="M54,54m-20,0a20,20 0,1 1,40 0a20,20 0,1 1,-40 0"/>
+        </vector>
+        EOF
+        
         touch app/proguard-rules.pro
 
-    # 8. Build
     - name: Build APK
       run: |
-        gradle --version
         gradle assembleDebug --no-daemon
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
-        name: OA-App-Final
+        name: OA-App-Final-Clean
         path: app/build/outputs/apk/debug/app-debug.apk
