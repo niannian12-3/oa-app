@@ -1,4 +1,4 @@
-name: Build OA App (Gradle 9 Fixed)
+name: Build OA App (Fixed Gradle Version)
 
 on:
   push:
@@ -18,6 +18,18 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
+    # ✅ 关键步骤：手动下载并解压指定版本的 Gradle (避开系统默认的 Gradle 9)
+    - name: Setup Specific Gradle 8.7
+      run: |
+        echo "Downloading Gradle 8.7..."
+        wget -q https://services.gradle.org/distributions/gradle-8.7-bin.zip
+        unzip -q gradle-8.7-bin.zip
+        rm gradle-8.7-bin.zip
+        # 将下载的 gradle 添加到 PATH，确保后续命令优先使用它
+        echo "$GITHUB_WORKSPACE/gradle-8.7/bin" >> $GITHUB_PATH
+        echo "Gradle version set to:"
+        gradle --version
+
     - name: Create Project Structure
       run: |
         mkdir -p app/src/main/java/com/oa/app
@@ -26,120 +38,80 @@ jobs:
         mkdir -p app/src/main/res/drawable
         mkdir -p app/src/main/res/mipmap-anydpi-v26
 
-    # 1. MainActivity.kt (带详细报错)
+    # 1. MainActivity.kt
     - name: Generate MainActivity.kt
       run: |
         cat > app/src/main/java/com/oa/app/MainActivity.kt << 'KOTLIN_EOF'
         package com.oa.app
-
         import android.os.Bundle
-        import android.widget.Button
-        import android.widget.EditText
-        import android.widget.TextView
-        import android.widget.Toast
+        import android.widget.*
         import androidx.appcompat.app.AppCompatActivity
-        import kotlinx.coroutines.CoroutineScope
-        import kotlinx.coroutines.Dispatchers
-        import kotlinx.coroutines.launch
-        import kotlinx.coroutines.withContext
-        import java.io.BufferedReader
-        import java.io.InputStreamReader
-        import java.io.OutputStreamWriter
-        import java.net.HttpURLConnection
-        import java.net.URL
-        import java.net.UnknownHostException
-        import java.net.ConnectException
-        import java.net.SocketTimeoutException
+        import kotlinx.coroutines.*
+        import java.io.*
+        import java.net.*
 
         class MainActivity : AppCompatActivity() {
-
             private val SERVER_URL = "http://192.168.11.43:3000/login"
 
             override fun onCreate(savedInstanceState: Bundle?) {
                 super.onCreate(savedInstanceState)
                 setContentView(R.layout.activity_main)
-
-                val etEmployeeId = findViewById<EditText>(R.id.employeeIdEditText)
-                val etPassword = findViewById<EditText>(R.id.passwordEditText)
+                val etId = findViewById<EditText>(R.id.employeeIdEditText)
+                val etPwd = findViewById<EditText>(R.id.passwordEditText)
                 val btnLogin = findViewById<Button>(R.id.loginButton)
                 val tvStatus = findViewById<TextView>(R.id.statusTextView)
-
-                tvStatus.text = "系统就绪\nIP: 192.168.11.43"
+                tvStatus.text = "就绪 (IP: 192.168.11.43)"
 
                 btnLogin.setOnClickListener {
-                    val empId = etEmployeeId.text.toString().trim()
-                    val pwd = etPassword.text.toString().trim()
-
-                    if (empId.isEmpty() || pwd.isEmpty()) {
-                        Toast.makeText(this, "请输入员工ID和密码", Toast.LENGTH_SHORT).show()
+                    val id = etId.text.toString().trim()
+                    val pwd = etPwd.text.toString().trim()
+                    if (id.isEmpty() || pwd.isEmpty()) {
+                        Toast.makeText(this, "请输入账号密码", Toast.LENGTH_SHORT).show()
                         return@setOnClickListener
                     }
-
-                    tvStatus.text = "正在连接..."
+                    tvStatus.text = "连接中..."
                     btnLogin.isEnabled = false
-
                     CoroutineScope(Dispatchers.IO).launch {
-                        var resultMessage = ""
-                        try {
-                            resultMessage = performLogin(empId, pwd)
-                        } catch (e: Exception) {
-                            resultMessage = "❌ 错误: ${e.javaClass.simpleName}\n${e.message}"
-                        }
-
+                        var msg = ""
+                        try { msg = login(id, pwd) } 
+                        catch (e: Exception) { msg = "❌ ${e.javaClass.simpleName}: ${e.message}" }
                         withContext(Dispatchers.Main) {
-                            tvStatus.text = resultMessage
+                            tvStatus.text = msg
                             btnLogin.isEnabled = true
-                            Toast.makeText(this@MainActivity, resultMessage, Toast.LENGTH_LONG).show()
+                            Toast.makeText(this@MainActivity, msg, Toast.LENGTH_LONG).show()
                         }
                     }
                 }
             }
 
-            private fun performLogin(id: String, pwd: String): String {
-                val url = URL(SERVER_URL)
-                val conn = url.openConnection() as HttpURLConnection
+            private fun login(id: String, pwd: String): String {
+                val conn = URL(SERVER_URL).openConnection() as HttpURLConnection
                 try {
                     conn.requestMethod = "POST"
                     conn.doOutput = true
                     conn.connectTimeout = 10000
                     conn.readTimeout = 10000
                     conn.setRequestProperty("Content-Type", "application/json")
-                    
-                    val jsonInput = """{"employeeId":"$id","password":"$pwd"}"""
-                    OutputStreamWriter(conn.outputStream).use { it.write(jsonInput) }
-
+                    OutputStreamWriter(conn.outputStream).use { it.write("""{"employeeId":"$id","password":"$pwd"}""") }
                     val code = conn.responseCode
-                    if (code == 200) {
-                        return "✅ 成功: ${BufferedReader(InputStreamReader(conn.inputStream)).readText()}"
-                    } else {
-                        return "⚠️ 错误码: $code"
-                    }
-                } catch (e: UnknownHostException) {
-                    return "❌ 找不到服务器!\n请检查:\n1. 是否同一WiFi?\n2. IP是否正确?"
-                } catch (e: ConnectException) {
-                    return "❌ 连接被拒绝!\n请检查:\n1. 防火墙?\n2. 后端启动了吗?"
-                } catch (e: SocketTimeoutException) {
-                    return "❌ 连接超时"
-                } catch (e: Exception) {
-                    return "❌ 未知: ${e.message}"
-                } finally {
-                    conn.disconnect()
-                }
+                    return if (code == 200) "✅ 成功: ${BufferedReader(InputStreamReader(conn.inputStream)).readText()}" else "⚠️ 错误码: $code"
+                } catch (e: UnknownHostException) { return "❌ 找不到服务器\n检查WiFi和IP" }
+                catch (e: ConnectException) { return "❌ 连接被拒绝\n检查防火墙/后端" }
+                catch (e: SocketTimeoutException) { return "❌ 连接超时" }
+                catch (e: Exception) { return "❌ 错误: ${e.message}" }
+                finally { conn.disconnect() }
             }
         }
         KOTLIN_EOF
 
-    # 2. Layout XML
+    # 2. Layout
     - name: Generate Layout
       run: |
         cat > app/src/main/res/layout/activity_main.xml << 'XML_EOF'
         <?xml version="1.0" encoding="utf-8"?>
         <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:orientation="vertical"
-            android:padding="24dp"
-            android:gravity="center">
+            android:layout_width="match_parent" android:layout_height="match_parent"
+            android:orientation="vertical" android:padding="24dp" android:gravity="center">
             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
                 android:text="OA 办公系统" android:textSize="24sp" android:textStyle="bold" android:layout_marginBottom="32dp"/>
             <EditText android:id="@+id/employeeIdEditText" android:layout_width="match_parent" android:layout_height="wrap_content"
@@ -153,7 +125,7 @@ jobs:
         </LinearLayout>
         XML_EOF
 
-    # 3. AndroidManifest.xml (含 usesCleartextTraffic)
+    # 3. Manifest
     - name: Generate Manifest
       run: |
         cat > app/src/main/AndroidManifest.xml << 'XML_EOF'
@@ -174,7 +146,7 @@ jobs:
         </manifest>
         XML_EOF
 
-    # 4. app/build.gradle (含协程依赖)
+    # 4. app/build.gradle (✅ 升级 Kotlin 插件到 1.9.22 以兼容 Gradle 8.7)
     - name: Generate app/build.gradle
       run: |
         cat > app/build.gradle << 'GRADLE_EOF'
@@ -192,9 +164,7 @@ jobs:
                 versionCode 1
                 versionName "1.0"
             }
-            buildTypes {
-                release { minifyEnabled false }
-            }
+            buildTypes { release { minifyEnabled false } }
             compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
             kotlinOptions { jvmTarget = '17' }
         }
@@ -206,80 +176,58 @@ jobs:
         }
         GRADLE_EOF
 
-    # 5. 根目录 build.gradle (✅ 修复点：移除 repositories 块，只留 plugins)
+    # 5. Root build.gradle
     - name: Generate Root build.gradle
       run: |
         cat > build.gradle << 'GRADLE_EOF'
-        // ✅ 修复：Gradle 9+ 不允许在此处定义 repositories，必须只在 settings.gradle 中定义
         buildscript {
-            repositories {
-                // 即使这里写了，只要 settings.gradle 中有 dependencyResolutionManagement，这里会被忽略或报错
-                // 为了安全，我们保持最简，或者完全依赖 settings.gradle
-                google()
-                mavenCentral()
-            }
+            repositories { google(); mavenCentral() }
             dependencies {
-                classpath 'com.android.tools.build:gradle:8.2.0'
-                classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.0'
+                // ✅ 使用兼容 Gradle 8.7 的 AGP 版本
+                classpath 'com.android.tools.build:gradle:8.2.2'
+                // ✅ 使用兼容的 Kotlin 插件版本
+                classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.22'
             }
         }
-        // ✅ 关键：不再在此处定义 allprojects repositories
         task clean(type: Delete) { delete rootProject.buildDir }
         GRADLE_EOF
 
-    # 6. settings.gradle (✅ 修复点：统一管理仓库)
+    # 6. settings.gradle
     - name: Generate settings.gradle
       run: |
         cat > settings.gradle << 'GRADLE_EOF'
         pluginManagement {
-            repositories {
-                google()
-                mavenCentral()
-                gradlePluginPortal()
-            }
+            repositories { google(); mavenCentral(); gradlePluginPortal() }
         }
-        // ✅ 关键：强制优先使用此处定义的仓库，防止 build.gradle 冲突
         dependencyResolutionManagement {
             repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
-            repositories {
-                google()
-                mavenCentral()
-            }
+            repositories { google(); mavenCentral() }
         }
         rootProject.name = "OAApp"
         include ':app'
         GRADLE_EOF
 
-    # 7. 资源文件
+    # 7. Resources
     - name: Generate Resources
       run: |
         echo '<resources><string name="app_name">OA办公</string><color name="ic_launcher_background">#FFFFFF</color></resources>' > app/src/main/res/values/strings.xml
         echo '<resources><color name="ic_launcher_background">#FFFFFF</color></resources>' > app/src/main/res/values/colors.xml
-        
         mkdir -p app/src/main/res/mipmap-anydpi-v26
-        cat > app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml << 'EOF'
-        <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android"><background android:drawable="@color/ic_launcher_background"/><foreground android:drawable="@drawable/ic_foreground"/></adaptive-icon>
-        EOF
-        cat > app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml << 'EOF'
-        <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android"><background android:drawable="@color/ic_launcher_background"/><foreground android:drawable="@drawable/ic_foreground"/></adaptive-icon>
-        EOF
-        
+        echo '<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android"><background android:drawable="@color/ic_launcher_background"/><foreground android:drawable="@drawable/ic_foreground"/></adaptive-icon>' > app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
+        echo '<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android"><background android:drawable="@color/ic_launcher_background"/><foreground android:drawable="@drawable/ic_foreground"/></adaptive-icon>' > app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
         mkdir -p app/src/main/res/drawable
-        cat > app/src/main/res/drawable/ic_foreground.xml << 'EOF'
-        <vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108"><path android:fillColor="#3DDC84" android:pathData="M0,0h108v108H0z"/><path android:fillColor="#FFFFFF" android:pathData="M54,54m-20,0a20,20 0,1 1,40 0a20,20 0,1 1,-40 0"/></vector>
-        EOF
+        echo '<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108"><path android:fillColor="#3DDC84" android:pathData="M0,0h108v108H0z"/><path android:fillColor="#FFFFFF" android:pathData="M54,54m-20,0a20,20 0,1 1,40 0a20,20 0,1 1,-40 0"/></vector>' > app/src/main/res/drawable/ic_foreground.xml
         touch app/proguard-rules.pro
 
-    # 8. 构建 (✅ 修复点：强制使用 Gradle 8.7，避开 Gradle 9 的严格模式问题)
+    # 8. Build (✅ 直接使用已添加到 PATH 的 Gradle 8.7)
     - name: Build APK
       run: |
-        # 生成指定版本的 Wrapper (8.7 是最稳定的 LTS，兼容性好)
-        gradle wrapper --gradle-version 8.7 --distribution-type bin
-        chmod +x ./gradlew
-        ./gradlew assembleDebug --no-daemon
+        echo "Building with Gradle version:"
+        gradle --version
+        gradle assembleDebug --no-daemon --stacktrace
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
-        name: OA-App-Final
+        name: OA-App-Final-Fixed
         path: app/build/outputs/apk/debug/app-debug.apk
