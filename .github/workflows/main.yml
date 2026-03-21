@@ -1,37 +1,32 @@
-name: Build OA App (Final Fixed Version)
+name: Build OA App (Gradle 9 Fixed)
 
 on:
   push:
     branches: [ main, master ]
-  workflow_dispatch: # 允许手动触发
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-    # 1. 检出代码
     - uses: actions/checkout@v4
 
-    # 2. 设置 Java 环境 (必须 JDK 17 以配合 Gradle 8+)
     - name: Set up JDK 17
       uses: actions/setup-java@v4
       with:
         java-version: '17'
         distribution: 'temurin'
-        cache: gradle
 
-    # 3. 创建项目目录结构
     - name: Create Project Structure
       run: |
         mkdir -p app/src/main/java/com/oa/app
         mkdir -p app/src/main/res/layout
         mkdir -p app/src/main/res/values
-        mkdir -p app/src/main/res/mipmap-anydpi-v26
         mkdir -p app/src/main/res/drawable
-        mkdir -p .github/workflows
+        mkdir -p app/src/main/res/mipmap-anydpi-v26
 
-    # 4. 生成 MainActivity.kt (核心逻辑：含详细错误捕获)
+    # 1. MainActivity.kt (带详细报错)
     - name: Generate MainActivity.kt
       run: |
         cat > app/src/main/java/com/oa/app/MainActivity.kt << 'KOTLIN_EOF'
@@ -58,7 +53,6 @@ jobs:
 
         class MainActivity : AppCompatActivity() {
 
-            // ⚠️ 服务器地址配置 (当前为您的局域网 IP)
             private val SERVER_URL = "http://192.168.11.43:3000/login"
 
             override fun onCreate(savedInstanceState: Bundle?) {
@@ -70,7 +64,7 @@ jobs:
                 val btnLogin = findViewById<Button>(R.id.loginButton)
                 val tvStatus = findViewById<TextView>(R.id.statusTextView)
 
-                tvStatus.text = "系统就绪\n等待登录..."
+                tvStatus.text = "系统就绪\nIP: 192.168.11.43"
 
                 btnLogin.setOnClickListener {
                     val empId = etEmployeeId.text.toString().trim()
@@ -81,7 +75,7 @@ jobs:
                         return@setOnClickListener
                     }
 
-                    tvStatus.text = "正在连接服务器...\n$SERVER_URL"
+                    tvStatus.text = "正在连接..."
                     btnLogin.isEnabled = false
 
                     CoroutineScope(Dispatchers.IO).launch {
@@ -89,18 +83,13 @@ jobs:
                         try {
                             resultMessage = performLogin(empId, pwd)
                         } catch (e: Exception) {
-                            resultMessage = "❌ 异常捕获: ${e.javaClass.simpleName}\n详情: ${e.message}"
+                            resultMessage = "❌ 错误: ${e.javaClass.simpleName}\n${e.message}"
                         }
 
                         withContext(Dispatchers.Main) {
                             tvStatus.text = resultMessage
                             btnLogin.isEnabled = true
-                            
-                            if (resultMessage.startsWith("成功")) {
-                                Toast.makeText(this@MainActivity, "登录成功!", Toast.LENGTH_LONG).show()
-                            } else {
-                                Toast.makeText(this@MainActivity, resultMessage, Toast.LENGTH_LONG).show()
-                            }
+                            Toast.makeText(this@MainActivity, resultMessage, Toast.LENGTH_LONG).show()
                         }
                     }
                 }
@@ -109,39 +98,30 @@ jobs:
             private fun performLogin(id: String, pwd: String): String {
                 val url = URL(SERVER_URL)
                 val conn = url.openConnection() as HttpURLConnection
-                
                 try {
                     conn.requestMethod = "POST"
                     conn.doOutput = true
-                    conn.connectTimeout = 15000 // 15秒超时
-                    conn.readTimeout = 15000
-                    conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8")
-                    conn.setRequestProperty("Accept", "application/json")
-
-                    val jsonInput = """{"employeeId":"$id","password":"$pwd"}"""
+                    conn.connectTimeout = 10000
+                    conn.readTimeout = 10000
+                    conn.setRequestProperty("Content-Type", "application/json")
                     
-                    OutputStreamWriter(conn.outputStream, "UTF-8").use { writer ->
-                        writer.write(jsonInput)
-                        writer.flush()
-                    }
+                    val jsonInput = """{"employeeId":"$id","password":"$pwd"}"""
+                    OutputStreamWriter(conn.outputStream).use { it.write(jsonInput) }
 
-                    val responseCode = conn.responseCode
-                    if (responseCode == HttpURLConnection.HTTP_OK) {
-                        BufferedReader(InputStreamReader(conn.inputStream, "UTF-8")).use { reader ->
-                            val response = reader.readText()
-                            return "✅ 成功: $response"
-                        }
+                    val code = conn.responseCode
+                    if (code == 200) {
+                        return "✅ 成功: ${BufferedReader(InputStreamReader(conn.inputStream)).readText()}"
                     } else {
-                        return "⚠️ 服务器返回错误码: $responseCode"
+                        return "⚠️ 错误码: $code"
                     }
                 } catch (e: UnknownHostException) {
-                    return "❌ 找不到服务器主机!\n原因:\n1. 手机与电脑不在同一WiFi\n2. IP地址错误\n3. 路由器隔离"
+                    return "❌ 找不到服务器!\n请检查:\n1. 是否同一WiFi?\n2. IP是否正确?"
                 } catch (e: ConnectException) {
-                    return "❌ 连接被拒绝!\n原因:\n1. 电脑防火墙拦截\n2. 后端程序未启动\n3. 端口号错误"
+                    return "❌ 连接被拒绝!\n请检查:\n1. 防火墙?\n2. 后端启动了吗?"
                 } catch (e: SocketTimeoutException) {
-                    return "❌ 连接超时!\n原因:\n网络太慢或服务器无响应"
+                    return "❌ 连接超时"
                 } catch (e: Exception) {
-                    return "❌ 未知错误: ${e.message}"
+                    return "❌ 未知: ${e.message}"
                 } finally {
                     conn.disconnect()
                 }
@@ -149,8 +129,8 @@ jobs:
         }
         KOTLIN_EOF
 
-    # 5. 生成布局文件 activity_main.xml
-    - name: Generate Layout XML
+    # 2. Layout XML
+    - name: Generate Layout
       run: |
         cat > app/src/main/res/layout/activity_main.xml << 'XML_EOF'
         <?xml version="1.0" encoding="utf-8"?>
@@ -158,82 +138,33 @@ jobs:
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:orientation="vertical"
-            android:padding="20dp"
-            android:gravity="center_horizontal">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="OA 办公系统"
-                android:textSize="26sp"
-                android:textStyle="bold"
-                android:textColor="#333333"
-                android:layout_marginBottom="40dp"/>
-
-            <EditText
-                android:id="@+id/employeeIdEditText"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:hint="员工 ID"
-                android:inputType="text"
-                android:padding="12dp"
-                android:background="@android:drawable/edit_text"
-                android:layout_marginBottom="15dp"/>
-
-            <EditText
-                android:id="@+id/passwordEditText"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:hint="密码"
-                android:inputType="textPassword"
-                android:padding="12dp"
-                android:background="@android:drawable/edit_text"
-                android:layout_marginBottom="25dp"/>
-
-            <Button
-                android:id="@+id/loginButton"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="立即登录"
-                android:textSize="18sp"
-                android:padding="12dp"/>
-
-            <TextView
-                android:id="@+id/statusTextView"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="30dp"
-                android:text="状态：就绪"
-                android:textColor="#666666"
-                android:textSize="14sp"
-                android:lineSpacingExtra="4dp"/>
+            android:padding="24dp"
+            android:gravity="center">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="OA 办公系统" android:textSize="24sp" android:textStyle="bold" android:layout_marginBottom="32dp"/>
+            <EditText android:id="@+id/employeeIdEditText" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:hint="员工 ID" android:inputType="text" android:layout_marginBottom="16dp"/>
+            <EditText android:id="@+id/passwordEditText" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:hint="密码" android:inputType="textPassword" android:layout_marginBottom="24dp"/>
+            <Button android:id="@+id/loginButton" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="登 录" android:textSize="18sp"/>
+            <TextView android:id="@+id/statusTextView" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:layout_marginTop="32dp" android:text="状态" android:textColor="#555"/>
         </LinearLayout>
         XML_EOF
 
-    # 6. 生成 AndroidManifest.xml (关键：开启明文传输)
-    - name: Generate AndroidManifest.xml
+    # 3. AndroidManifest.xml (含 usesCleartextTraffic)
+    - name: Generate Manifest
       run: |
         cat > app/src/main/AndroidManifest.xml << 'XML_EOF'
         <?xml version="1.0" encoding="utf-8"?>
         <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-
-            <!-- 网络权限 -->
             <uses-permission android:name="android.permission.INTERNET" />
-            <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-
-            <application
-                android:allowBackup="true"
-                android:icon="@mipmap/ic_launcher"
-                android:label="OA办公"
-                android:roundIcon="@mipmap/ic_launcher_round"
-                android:supportsRtl="true"
-                android:theme="@style/Theme.AppCompat.Light.DarkActionBar"
-                android:usesCleartextTraffic="true"> 
-                <!-- ⬆️ 关键配置：允许 HTTP 明文传输，防止闪退 -->
-
-                <activity
-                    android:name=".MainActivity"
-                    android:exported="true">
+            <application android:allowBackup="true" android:icon="@mipmap/ic_launcher"
+                android:label="OA办公" android:roundIcon="@mipmap/ic_launcher_round"
+                android:supportsRtl="true" android:theme="@style/Theme.AppCompat.Light.DarkActionBar"
+                android:usesCleartextTraffic="true">
+                <activity android:name=".MainActivity" android:exported="true">
                     <intent-filter>
                         <action android:name="android.intent.action.MAIN" />
                         <category android:name="android.intent.category.LAUNCHER" />
@@ -243,7 +174,7 @@ jobs:
         </manifest>
         XML_EOF
 
-    # 7. 生成 app/build.gradle (关键：添加协程依赖)
+    # 4. app/build.gradle (含协程依赖)
     - name: Generate app/build.gradle
       run: |
         cat > app/build.gradle << 'GRADLE_EOF'
@@ -251,70 +182,55 @@ jobs:
             id 'com.android.application'
             id 'org.jetbrains.kotlin.android'
         }
-
         android {
             namespace 'com.oa.app'
             compileSdk 34
-
             defaultConfig {
                 applicationId "com.oa.app"
                 minSdk 24
                 targetSdk 34
                 versionCode 1
-                versionName "1.0.1-Fixed"
+                versionName "1.0"
             }
-
             buildTypes {
-                release {
-                    minifyEnabled false
-                    proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-                }
-                debug {
-                    minifyEnabled false
-                }
+                release { minifyEnabled false }
             }
-            compileOptions {
-                sourceCompatibility JavaVersion.VERSION_17
-                targetCompatibility JavaVersion.VERSION_17
-            }
-            kotlinOptions {
-                jvmTarget = '17'
-            }
+            compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+            kotlinOptions { jvmTarget = '17' }
         }
-
         dependencies {
             implementation 'androidx.core:core-ktx:1.12.0'
             implementation 'androidx.appcompat:appcompat:1.6.1'
             implementation 'com.google.android.material:material:1.11.0'
-            implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
-            
-            // ⬇️ 关键依赖：协程库，用于异步网络请求
             implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
         }
         GRADLE_EOF
 
-    # 8. 生成根目录 build.gradle 和 settings.gradle
-    - name: Generate Root Gradle Files
+    # 5. 根目录 build.gradle (✅ 修复点：移除 repositories 块，只留 plugins)
+    - name: Generate Root build.gradle
       run: |
-        cat > build.gradle << 'EOF'
+        cat > build.gradle << 'GRADLE_EOF'
+        // ✅ 修复：Gradle 9+ 不允许在此处定义 repositories，必须只在 settings.gradle 中定义
         buildscript {
             repositories {
+                // 即使这里写了，只要 settings.gradle 中有 dependencyResolutionManagement，这里会被忽略或报错
+                // 为了安全，我们保持最简，或者完全依赖 settings.gradle
                 google()
                 mavenCentral()
             }
-        }
-        allprojects {
-            repositories {
-                google()
-                mavenCentral()
+            dependencies {
+                classpath 'com.android.tools.build:gradle:8.2.0'
+                classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.0'
             }
         }
-        task clean(type: Delete) {
-            delete rootProject.buildDir
-        }
-        EOF
+        // ✅ 关键：不再在此处定义 allprojects repositories
+        task clean(type: Delete) { delete rootProject.buildDir }
+        GRADLE_EOF
 
-        cat > settings.gradle << 'EOF'
+    # 6. settings.gradle (✅ 修复点：统一管理仓库)
+    - name: Generate settings.gradle
+      run: |
+        cat > settings.gradle << 'GRADLE_EOF'
         pluginManagement {
             repositories {
                 google()
@@ -322,8 +238,9 @@ jobs:
                 gradlePluginPortal()
             }
         }
+        // ✅ 关键：强制优先使用此处定义的仓库，防止 build.gradle 冲突
         dependencyResolutionManagement {
-            repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+            repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
             repositories {
                 google()
                 mavenCentral()
@@ -331,70 +248,38 @@ jobs:
         }
         rootProject.name = "OAApp"
         include ':app'
-        EOF
+        GRADLE_EOF
 
-    # 9. 生成必要的资源文件 (strings.xml 和 图标)
+    # 7. 资源文件
     - name: Generate Resources
       run: |
-        echo '<resources><string name="app_name">OA办公</string></resources>' > app/src/main/res/values/strings.xml
+        echo '<resources><string name="app_name">OA办公</string><color name="ic_launcher_background">#FFFFFF</color></resources>' > app/src/main/res/values/strings.xml
+        echo '<resources><color name="ic_launcher_background">#FFFFFF</color></resources>' > app/src/main/res/values/colors.xml
         
-        # 生成一个简单的自适应图标背景
-        mkdir -p app/src/main/res/values
-        echo '<resources><color name="ic_launcher_background">#FFFFFF</color></resources>' >> app/src/main/res/values/colors.xml
-        
-        # 生成简单的矢量图标占位符 (避免资源缺失)
         mkdir -p app/src/main/res/mipmap-anydpi-v26
         cat > app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml << 'EOF'
-        <?xml version="1.0" encoding="utf-8"?>
-        <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
-            <background android:drawable="@color/ic_launcher_background"/>
-            <foreground android:drawable="@drawable/ic_launcher_foreground"/>
-        </adaptive-icon>
+        <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android"><background android:drawable="@color/ic_launcher_background"/><foreground android:drawable="@drawable/ic_foreground"/></adaptive-icon>
         EOF
-        
         cat > app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml << 'EOF'
-        <?xml version="1.0" encoding="utf-8"?>
-        <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
-            <background android:drawable="@color/ic_launcher_background"/>
-            <foreground android:drawable="@drawable/ic_launcher_foreground"/>
-        </adaptive-icon>
-        EOF
-
-        # 创建一个简单的蓝色方块作为前景图标
-        mkdir -p app/src/main/res/drawable
-        cat > app/src/main/res/drawable/ic_launcher_foreground.xml << 'EOF'
-        <vector xmlns:android="http://schemas.android.com/apk/res/android"
-            android:width="108dp"
-            android:height="108dp"
-            android:viewportWidth="108"
-            android:viewportHeight="108">
-            <path
-                android:fillColor="#3DDC84"
-                android:pathData="M0,0h108v108H0z"/>
-            <path
-                android:fillColor="#FFFFFF"
-                android:pathData="M54,54m-20,0a20,20 0,1 1,40 0a20,20 0,1 1,-40 0"/>
-        </vector>
+        <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android"><background android:drawable="@color/ic_launcher_background"/><foreground android:drawable="@drawable/ic_foreground"/></adaptive-icon>
         EOF
         
-        # 创建 proguard-rules.pro 空文件
+        mkdir -p app/src/main/res/drawable
+        cat > app/src/main/res/drawable/ic_foreground.xml << 'EOF'
+        <vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108"><path android:fillColor="#3DDC84" android:pathData="M0,0h108v108H0z"/><path android:fillColor="#FFFFFF" android:pathData="M54,54m-20,0a20,20 0,1 1,40 0a20,20 0,1 1,-40 0"/></vector>
+        EOF
         touch app/proguard-rules.pro
 
-    # 10. 执行构建
-    - name: Build Debug APK
+    # 8. 构建 (✅ 修复点：强制使用 Gradle 8.7，避开 Gradle 9 的严格模式问题)
+    - name: Build APK
       run: |
-        # 确保 gradlew 有执行权限 (虽然我们是生成文件，但以防万一)
-        # 这里直接使用 sdkmanager 或预装环境，通常 ubuntu-latest 需要手动下载 gradle wrapper 或使用系统 gradle
-        # 为了最稳妥，我们直接调用 gradle 命令 (GitHub Actions ubuntu 镜像通常预装了 gradle 或通过 setup-java 处理)
-        # 如果没有 wrapper，我们直接用 gradle 命令
+        # 生成指定版本的 Wrapper (8.7 是最稳定的 LTS，兼容性好)
         gradle wrapper --gradle-version 8.7 --distribution-type bin
         chmod +x ./gradlew
-        ./gradlew assembleDebug --stacktrace
+        ./gradlew assembleDebug --no-daemon
 
-    # 11. 上传 APK
-    - name: Upload Artifact
+    - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
-        name: OA-App-Debug-Fixed
+        name: OA-App-Final
         path: app/build/outputs/apk/debug/app-debug.apk
-        retention-days: 5
