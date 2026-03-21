@@ -1,4 +1,4 @@
-name: Build OA App (Fixed Gradle Version)
+name: Build OA App (Final Fixed)
 
 on:
   push:
@@ -18,17 +18,13 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    # ✅ 关键步骤：手动下载并解压指定版本的 Gradle (避开系统默认的 Gradle 9)
+    # ✅ 关键修复：手动下载并指定 Gradle 8.7，避开系统默认版本
     - name: Setup Specific Gradle 8.7
       run: |
-        echo "Downloading Gradle 8.7..."
         wget -q https://services.gradle.org/distributions/gradle-8.7-bin.zip
         unzip -q gradle-8.7-bin.zip
         rm gradle-8.7-bin.zip
-        # 将下载的 gradle 添加到 PATH，确保后续命令优先使用它
         echo "$GITHUB_WORKSPACE/gradle-8.7/bin" >> $GITHUB_PATH
-        echo "Gradle version set to:"
-        gradle --version
 
     - name: Create Project Structure
       run: |
@@ -146,7 +142,7 @@ jobs:
         </manifest>
         XML_EOF
 
-    # 4. app/build.gradle (✅ 升级 Kotlin 插件到 1.9.22 以兼容 Gradle 8.7)
+    # 4. app/build.gradle
     - name: Generate app/build.gradle
       run: |
         cat > app/build.gradle << 'GRADLE_EOF'
@@ -183,9 +179,7 @@ jobs:
         buildscript {
             repositories { google(); mavenCentral() }
             dependencies {
-                // ✅ 使用兼容 Gradle 8.7 的 AGP 版本
                 classpath 'com.android.tools.build:gradle:8.2.2'
-                // ✅ 使用兼容的 Kotlin 插件版本
                 classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.22'
             }
         }
@@ -207,6 +201,15 @@ jobs:
         include ':app'
         GRADLE_EOF
 
+    # ✅ 关键修复：生成 gradle.properties 开启 AndroidX
+    - name: Generate gradle.properties
+      run: |
+        cat > gradle.properties << 'EOF'
+        org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
+        android.useAndroidX=true
+        android.enableJetifier=true
+        EOF
+
     # 7. Resources
     - name: Generate Resources
       run: |
@@ -219,15 +222,14 @@ jobs:
         echo '<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108"><path android:fillColor="#3DDC84" android:pathData="M0,0h108v108H0z"/><path android:fillColor="#FFFFFF" android:pathData="M54,54m-20,0a20,20 0,1 1,40 0a20,20 0,1 1,-40 0"/></vector>' > app/src/main/res/drawable/ic_foreground.xml
         touch app/proguard-rules.pro
 
-    # 8. Build (✅ 直接使用已添加到 PATH 的 Gradle 8.7)
+    # 8. Build
     - name: Build APK
       run: |
-        echo "Building with Gradle version:"
         gradle --version
-        gradle assembleDebug --no-daemon --stacktrace
+        gradle assembleDebug --no-daemon
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
-        name: OA-App-Final-Fixed
+        name: OA-App-Final
         path: app/build/outputs/apk/debug/app-debug.apk
